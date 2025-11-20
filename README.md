@@ -42,8 +42,8 @@ safehome/
 │ │ │ ├── sensor_controller.py # SensorController class
 │ │ │ ├── motion_sensor.py # MotionSensor class
 │ │ │ ├── window_door_sensor.py # WindowDoorSensor class
-│ │ │ ├── device_motion_detector.py # DeviceMotionDetector (hardware wrapper)
-│ │ │ ├── device_windoor_sensor.py # DeviceWinDoorSensor (hardware wrapper)
+│ │ │ ├── device_motion_detector.py # DeviceMotionDetector (hardware)
+│ │ │ ├── device_windoor_sensor.py # DeviceWinDoorSensor (hardware)
 │ │ │ └── device_sensor_tester.py # DeviceSensorTester base class
 │ │ │
 │ │ ├── cameras/ # Camera-related classes
@@ -64,7 +64,7 @@ safehome/
 │ │ ├── **init**.py
 │ │ ├── device_control_panel_abstract.py # Base control panel GUI
 │ │ ├── control_panel.py # ControlPanel class (logic)
-│ │ └── safehome_control_panel.py # SafeHomeControlPanel class
+│ │ └── safehome_control_panel.py # SafeHomeControlPanel
 │ │
 │ └── utils/ # Utility modules
 │ ├── **init**.py
@@ -76,7 +76,8 @@ safehome/
 │ │
 │ ├── unit/ # Unit tests
 │ │ ├── **init**.py
-│ │ ├── test_configuration/
+│ │ │
+│ │ ├── test_configuration/ # Configuration tests
 │ │ │ ├── **init**.py
 │ │ │ ├── test_configuration_manager.py
 │ │ │ ├── test_login_manager.py
@@ -84,7 +85,7 @@ safehome/
 │ │ │ ├── test_safety_zone.py
 │ │ │ └── test_safehome_mode.py
 │ │ │
-│ │ ├── test_devices/
+│ │ ├── test_devices/ # Device tests
 │ │ │ ├── **init**.py
 │ │ │ ├── test_sensor_controller.py
 │ │ │ ├── test_camera_controller.py
@@ -92,11 +93,11 @@ safehome/
 │ │ │ ├── test_window_door_sensor.py
 │ │ │ └── test_alarm.py
 │ │ │
-│ │ ├── test_interfaces/
+│ │ ├── test_interfaces/ # Interface tests
 │ │ │ ├── **init**.py
 │ │ │ └── test_control_panel.py
 │ │ │
-│ │ └── test_core/
+│ │ └── test_core/ # Core system tests
 │ │ ├── **init**.py
 │ │ └── test_system.py
 │ │
@@ -141,4 +142,4 @@ safehome/
 │
 └── .github/ # GitHub specific files (optional)
 └── workflows/
-└── ci.yml # Continuous integration configuration
+└── ci.yml # CI configuration
