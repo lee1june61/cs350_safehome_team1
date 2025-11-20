@@ -90,7 +90,7 @@ class LoginInterface:
     # ------------------------------------------------------------------
     # Password operations
     # ------------------------------------------------------------------
-    def verify_password(self, password: str) -> Bool:  # type: ignore[name-defined]
+    def verify_password(self, password: str) -> bool:
         """Check whether the provided password matches the stored hash."""
         return self.password_hash == _hash_password(password)
 
