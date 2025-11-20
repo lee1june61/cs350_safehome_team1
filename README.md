@@ -1,145 +1,127 @@
+# SafeHome Project - Directory Structure
+
+## Project Structure
+
+```
 safehome/
-│
-├── README.md # Project overview and setup instructions
-├── requirements.txt # Python dependencies
-├── setup.py # Package installation configuration
-│
-├── docs/ # Documentation
-│ ├── SDS_document.pdf # Software Design Specification
-│ ├── SRS_document.pdf # Software Requirements Specification
-│ ├── Implementation_and_Testing.pdf # Implementation and testing documentation
-│ └── user_manual.pdf # End-user documentation
-│
-├── safehome/ # Main application package
-│ ├── **init**.py
-│ │
-│ ├── main.py # Application entry point
-│ │
-│ ├── core/ # Core system components
-│ │ ├── **init**.py
-│ │ ├── system.py # System class (main controller)
-│ │ └── constants.py # System-wide constants and enums
-│ │
-│ ├── configuration/ # Configuration and data management
-│ │ ├── **init**.py
-│ │ ├── configuration_manager.py # ConfigurationManager class
-│ │ ├── system_settings.py # SystemSettings class
-│ │ ├── safehome_mode.py # SafeHomeMode class
-│ │ ├── safety_zone.py # SafetyZone class
-│ │ ├── storage_manager.py # StorageManager class (database access)
-│ │ ├── log.py # Log class
-│ │ ├── log_manager.py # LogManager class
-│ │ ├── login_interface.py # LoginInterface class
-│ │ └── login_manager.py # LoginManager class
-│ │
-│ ├── devices/ # Device management (sensors, cameras, alarm)
-│ │ ├── **init**.py
-│ │ │
-│ │ ├── sensors/ # Sensor-related classes
-│ │ │ ├── **init**.py
-│ │ │ ├── interface_sensor.py # InterfaceSensor (abstract)
-│ │ │ ├── sensor.py # Sensor base class
-│ │ │ ├── sensor_controller.py # SensorController class
-│ │ │ ├── motion_sensor.py # MotionSensor class
-│ │ │ ├── window_door_sensor.py # WindowDoorSensor class
-│ │ │ ├── device_motion_detector.py # DeviceMotionDetector (hardware)
-│ │ │ ├── device_windoor_sensor.py # DeviceWinDoorSensor (hardware)
-│ │ │ └── device_sensor_tester.py # DeviceSensorTester base class
-│ │ │
-│ │ ├── cameras/ # Camera-related classes
-│ │ │ ├── **init**.py
-│ │ │ ├── interface_camera.py # InterfaceCamera (abstract)
-│ │ │ ├── safehome_camera.py # SafeHomeCamera class
-│ │ │ ├── camera_controller.py # CameraController class
-│ │ │ └── device_camera.py # DeviceCamera (hardware wrapper)
-│ │ │
-│ │ └── alarm/ # Alarm-related classes
-│ │ ├── **init**.py
-│ │ └── alarm.py # Alarm class
-│ │
-│ ├── interfaces/ # User interfaces
-│ │ ├── **init**.py
-│ │ │
-│ │ └── control_panel/ # Control Panel interface
-│ │ ├── **init**.py
-│ │ ├── device_control_panel_abstract.py # Base control panel GUI
-│ │ ├── control_panel.py # ControlPanel class (logic)
-│ │ └── safehome_control_panel.py # SafeHomeControlPanel
-│ │
-│ └── utils/ # Utility modules
-│ ├── **init**.py
-│ ├── database_utils.py # Database helper functions
-│ └── validation_utils.py # Input validation utilities
-│
-├── tests/ # Test suite
-│ ├── **init**.py
-│ │
-│ ├── unit/ # Unit tests
-│ │ ├── **init**.py
-│ │ │
-│ │ ├── test_configuration/ # Configuration tests
-│ │ │ ├── **init**.py
-│ │ │ ├── test_configuration_manager.py
-│ │ │ ├── test_login_manager.py
-│ │ │ ├── test_log_manager.py
-│ │ │ ├── test_safety_zone.py
-│ │ │ └── test_safehome_mode.py
-│ │ │
-│ │ ├── test_devices/ # Device tests
-│ │ │ ├── **init**.py
-│ │ │ ├── test_sensor_controller.py
-│ │ │ ├── test_camera_controller.py
-│ │ │ ├── test_motion_sensor.py
-│ │ │ ├── test_window_door_sensor.py
-│ │ │ └── test_alarm.py
-│ │ │
-│ │ ├── test_interfaces/ # Interface tests
-│ │ │ ├── **init**.py
-│ │ │ └── test_control_panel.py
-│ │ │
-│ │ └── test_core/ # Core system tests
-│ │ ├── **init**.py
-│ │ └── test_system.py
-│ │
-│ ├── integration/ # Integration tests
-│ │ ├── **init**.py
-│ │ ├── test_login_process.py
-│ │ ├── test_sensor_alarm_integration.py
-│ │ ├── test_camera_integration.py
-│ │ └── test_configuration_integration.py
-│ │
-│ └── system/ # System-level tests
-│ ├── **init**.py
-│ ├── test_login_via_control_panel.py
-│ ├── test_arm_disarm_system.py
-│ └── test_alarm_scenarios.py
-│
-├── resources/ # Resource files
-│ ├── images/ # Image assets
-│ │ ├── camera1.jpg # Camera feed images
-│ │ ├── camera2.jpg
-│ │ └── camera3.jpg
-│ │
-│ ├── database/ # Database files and schemas
-│ │ ├── schema.sql # Database schema definition
-│ │ └── initial_data.sql # Initial seed data
-│ │
-│ └── config/ # Configuration files
-│ ├── default_config.json # Default system configuration
-│ └── test_config.json # Test environment configuration
-│
-├── examples/ # Example scripts and demonstrations
-│ ├── **init**.py
-│ ├── example_camera.py # Camera demonstration
-│ ├── example_control_panel.py # Control panel demonstration
-│ ├── example_all_sensors.py # Sensor demonstration
-│ └── README.md # Examples documentation
-│
-├── scripts/ # Utility scripts
-│ ├── setup_database.py # Database initialization script
-│ ├── run_tests.py # Test runner script
-│ └── generate_coverage.py # Coverage report generator
-│
-└── .github/ # GitHub specific files (optional)
-└── workflows/
-└── ci.yml # CI configuration
+├── README.md
+├── requirements.txt
+├── setup.py
+├── docs/
+│   ├── SDS_document.pdf
+│   ├── SRS_document.pdf
+│   ├── Implementation_and_Testing.pdf
+│   └── user_manual.pdf
+├── safehome/
+│   ├── __init__.py
+│   ├── main.py
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── system.py
+│   │   └── constants.py
+│   ├── configuration/
+│   │   ├── __init__.py
+│   │   ├── configuration_manager.py
+│   │   ├── system_settings.py
+│   │   ├── safehome_mode.py
+│   │   ├── safety_zone.py
+│   │   ├── storage_manager.py
+│   │   ├── log.py
+│   │   ├── log_manager.py
+│   │   ├── login_interface.py
+│   │   └── login_manager.py
+│   ├── devices/
+│   │   ├── __init__.py
+│   │   ├── sensors/
+│   │   │   ├── __init__.py
+│   │   │   ├── interface_sensor.py
+│   │   │   ├── sensor.py
+│   │   │   ├── sensor_controller.py
+│   │   │   ├── motion_sensor.py
+│   │   │   ├── window_door_sensor.py
+│   │   │   ├── device_motion_detector.py
+│   │   │   ├── device_windoor_sensor.py
+│   │   │   └── device_sensor_tester.py
+│   │   ├── cameras/
+│   │   │   ├── __init__.py
+│   │   │   ├── interface_camera.py
+│   │   │   ├── safehome_camera.py
+│   │   │   ├── camera_controller.py
+│   │   │   └── device_camera.py
+│   │   └── alarm/
+│   │       ├── __init__.py
+│   │       └── alarm.py
+│   ├── interfaces/
+│   │   ├── __init__.py
+│   │   └── control_panel/
+│   │       ├── __init__.py
+│   │       ├── device_control_panel_abstract.py
+│   │       ├── control_panel.py
+│   │       └── safehome_control_panel.py
+│   └── utils/
+│       ├── __init__.py
+│       ├── database_utils.py
+│       └── validation_utils.py
+├── tests/
+│   ├── __init__.py
+│   ├── unit/
+│   │   ├── __init__.py
+│   │   ├── test_configuration/
+│   │   │   ├── __init__.py
+│   │   │   ├── test_configuration_manager.py
+│   │   │   ├── test_login_manager.py
+│   │   │   ├── test_log_manager.py
+│   │   │   ├── test_safety_zone.py
+│   │   │   └── test_safehome_mode.py
+│   │   ├── test_devices/
+│   │   │   ├── __init__.py
+│   │   │   ├── test_sensor_controller.py
+│   │   │   ├── test_camera_controller.py
+│   │   │   ├── test_motion_sensor.py
+│   │   │   ├── test_window_door_sensor.py
+│   │   │   └── test_alarm.py
+│   │   ├── test_interfaces/
+│   │   │   ├── __init__.py
+│   │   │   └── test_control_panel.py
+│   │   └── test_core/
+│   │       ├── __init__.py
+│   │       └── test_system.py
+│   ├── integration/
+│   │   ├── __init__.py
+│   │   ├── test_login_process.py
+│   │   ├── test_sensor_alarm_integration.py
+│   │   ├── test_camera_integration.py
+│   │   ├── test_configuration_integration.py
+│   │   ├── test_arm_disarm_integration.py
+│   │   ├── test_safety_zone_integration.py
+│   │   └── test_system_startup_integration.py
+│   └── system/
+│       ├── __init__.py
+│       ├── test_login_via_control_panel.py
+│       ├── test_arm_disarm_system.py
+│       └── test_alarm_scenarios.py
+├── resources/
+│   ├── images/
+│   │   ├── camera1.jpg
+│   │   ├── camera2.jpg
+│   │   └── camera3.jpg
+│   ├── database/
+│   │   ├── schema.sql
+│   │   └── initial_data.sql
+│   └── config/
+│       ├── default_config.json
+│       └── test_config.json
+├── examples/
+│   ├── __init__.py
+│   ├── example_camera.py
+│   ├── example_control_panel.py
+│   ├── example_all_sensors.py
+│   └── README.md
+├── scripts/
+│   ├── setup_database.py
+│   ├── run_tests.py
+│   └── generate_coverage.py
+└── .github/
+    └── workflows/
+        └── ci.yml
+```
