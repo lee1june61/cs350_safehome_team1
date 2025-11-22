@@ -58,3 +58,6 @@ class DeviceWinDoorSensor(DeviceSensorTester, InterfaceSensor):
         """센서의 활성화 상태를 확인합니다."""
         return self.armed
 
+
+
+

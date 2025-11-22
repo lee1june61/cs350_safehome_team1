@@ -62,3 +62,6 @@ class WindowDoorSensor(Sensor):
         """
         self._opened = opened
 
+
+
+
