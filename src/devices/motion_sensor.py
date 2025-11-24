@@ -1,63 +1,58 @@
 from .device_sensor_tester import DeviceSensorTester
-from .interface_sensor import InterfaceSensor
+from .interfaces import InterfaceSensor
 
 
 class DeviceMotionDetector(DeviceSensorTester, InterfaceSensor):
-    """모션 감지 센서 디바이스 클래스"""
     
     def __init__(self):
         super().__init__()
         
-        # 고유 ID 할당
+        # Assign unique ID
         DeviceSensorTester.newIdSequence_MotionDetector += 1
         self.sensor_id = DeviceSensorTester.newIdSequence_MotionDetector
         
-        # 상태 초기화
+        # Initialize state
         self.detected = False
         self.armed = False
         
-        # 연결 리스트에 추가
+        # Add to linked list
         self.next = DeviceSensorTester.head_MotionDetector
         self.next_sensor = self.next  # alias
         DeviceSensorTester.head_MotionDetector = self
         DeviceSensorTester.head_motion_detector = self  # alias
         
-        # GUI 업데이트 및 헤드 연결
+        # Update GUI and link heads
         if DeviceSensorTester.safeHomeSensorTest is not None:
             DeviceSensorTester.safeHomeSensorTest.head_motion = DeviceSensorTester.head_MotionDetector
             DeviceSensorTester.safeHomeSensorTest.rangeSensorID_MotionDetector.set(
                 f"1 ~ {DeviceSensorTester.newIdSequence_MotionDetector}")
     
     def intrude(self):
-        """모션 감지를 시뮬레이션합니다."""
+        """Simulate motion detection."""
         self.detected = True
     
     def release(self):
-        """모션 감지를 해제합니다."""
+        """Clear motion detection."""
         self.detected = False
 
     def get_id(self):
-        """센서 ID를 반환합니다."""
+        """Alias for getID."""
         return self.sensor_id
     
     def read(self):
-        """센서 상태를 읽습니다."""
+        """Read the sensor state."""
         if self.armed:
             return self.detected
         return False
     
     def arm(self):
-        """센서를 활성화합니다."""
+        """Enable the sensor."""
         self.armed = True
     
     def disarm(self):
-        """센서를 비활성화합니다."""
+        """Disable the sensor."""
         self.armed = False
     
     def test_armed_state(self):
-        """센서의 활성화 상태를 확인합니다."""
+        """Test if the sensor is enabled."""
         return self.armed
-
-
-
-

@@ -3,6 +3,12 @@ IMPLEMENTATION_REPORT.md
 QUICKSTART.md
 HOW_TO_RUN.md
 INSTALL_PYTHON.md
+PROJECT_STRUCTURE.md
+
+# 테스트 파일들
+test_devices_simple.py
+test_devices_import.py
+test_new_structure.py
 
 # Python
 __pycache__/

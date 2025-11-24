@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 
 class DeviceSensorTester(ABC):
-    """센서 디바이스 테스터의 추상 기본 클래스"""
+    """Abstract base class for sensor devices with testing capability."""
     
     safeHomeSensorTest = None
     safehome_sensor_test = None  # alias for compatibility
@@ -20,17 +20,17 @@ class DeviceSensorTester(ABC):
     
     @abstractmethod
     def intrude(self):
-        """침입/감지를 시뮬레이션합니다."""
+        """Simulate intrusion/detection."""
         pass
     
     @abstractmethod
     def release(self):
-        """침입/감지 상태를 해제합니다."""
+        """Release intrusion/detection state."""
         pass
     
     @staticmethod
     def showSensorTester():
-        """센서 테스터 GUI를 표시합니다."""
+        """Show the sensor tester GUI."""
         if DeviceSensorTester.safeHomeSensorTest is not None:
             return
         try:
@@ -44,7 +44,7 @@ class DeviceSensorTester(ABC):
                 root = tk.Tk()
                 root.withdraw()
             gui = SafeHomeSensorTest(master=root)
-            # Java의 setVisible(true) 동작 미러링
+            # Mirror Java setVisible(true)
             try:
                 gui.deiconify()
                 gui.lift()
@@ -53,10 +53,6 @@ class DeviceSensorTester(ABC):
             DeviceSensorTester.safeHomeSensorTest = gui
             DeviceSensorTester.safehome_sensor_test = gui
         except Exception:
-            # 디스플레이/Tkinter가 없는 환경에서는 조용히 실패
+            # Fail silently in environments without display/Tkinter
             DeviceSensorTester.safeHomeSensorTest = None
             DeviceSensorTester.safehome_sensor_test = None
-
-
-
-
