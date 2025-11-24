@@ -9,13 +9,14 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-# Add the safehome directory to the path
-safehome_path = Path(__file__).parent
-if str(safehome_path) not in sys.path:
-    sys.path.insert(0, str(safehome_path))
+# Add the project directory to the path
+project_path = Path(__file__).parent
+if str(project_path) not in sys.path:
+    sys.path.insert(0, str(project_path))
 
-from devices.cameras import CameraController, SafeHomeCamera
-from devices.cameras.exceptions import CameraNotFoundError, CameraDisabledError
+from src.controllers.camera_controller import CameraController
+from src.models.camera import SafeHomeCamera
+from src.utils.exceptions import CameraNotFoundError, CameraDisabledError
 
 
 def test_camera_controller() -> None:
@@ -48,7 +49,7 @@ def test_camera_controller() -> None:
     for info in all_info:
         print(f"   Camera {info['id']}: location={info['location']}, "
               f"enabled={info['enabled']}, pan={info['pan_angle']}, "
-              f"zoom={info['zoom_setting']}")
+              f"zoom={info['zoom_level']}")
     
     # Enable cameras
     print("\n4. Enabling cameras...")
@@ -71,11 +72,11 @@ def test_camera_controller() -> None:
     # Control a camera
     print("\n7. Controlling camera (zoom and pan)...")
     camera = controller.get_camera_by_id(cam1_id)
-    print(f"   Initial state: pan={camera.get_pan_angle()}, zoom={camera.get_zoom_setting()}")
+    print(f"   Initial state: pan={camera.get_pan_angle()}, zoom={camera.get_zoom_level()}")
     
     # Zoom in
     controller.control_single_camera(cam1_id, CameraController.CONTROL_ZOOM_IN)
-    print(f"   After zoom in: zoom={camera.get_zoom_setting()}")
+    print(f"   After zoom in: zoom={camera.get_zoom_level()}")
     
     # Pan right
     controller.control_single_camera(cam1_id, CameraController.CONTROL_PAN_RIGHT)
@@ -89,10 +90,10 @@ def test_camera_controller() -> None:
     print("\n8. Testing camera limits...")
     camera = controller.get_camera_by_id(cam2_id)
     # Try to zoom to maximum
-    print(f"   Initial zoom: {camera.get_zoom_setting()}")
+    print(f"   Initial zoom: {camera.get_zoom_level()}")
     for i in range(10):
         if not camera.zoom_in():
-            print(f"   Reached max zoom: {camera.get_zoom_setting()}")
+            print(f"   Reached max zoom: {camera.get_zoom_level()}")
             break
     
     # Try to pan to maximum right
@@ -148,7 +149,7 @@ def test_camera_controller() -> None:
     for info in all_info:
         print(f"   Camera {info['id']}: location={info['location']}, "
               f"enabled={info['enabled']}, pan={info['pan_angle']}, "
-              f"zoom={info['zoom_setting']}, has_password={info['has_password']}")
+              f"zoom={info['zoom_level']}, has_password={info['has_password']}")
     
     # Cleanup
     print("\n15. Cleaning up...")
@@ -178,7 +179,7 @@ def test_individual_camera() -> None:
     print(f"   Enabled: {camera.is_enabled()}")
     print(f"   Has Password: {camera.has_password()}")
     print(f"   Pan Angle: {camera.get_pan_angle()}")
-    print(f"   Zoom Setting: {camera.get_zoom_setting()}")
+    print(f"   Zoom Level: {camera.get_zoom_level()}")
     
     # Enable camera
     print("\n3. Enabling camera...")
@@ -194,7 +195,7 @@ def test_individual_camera() -> None:
     # Test controls when enabled
     print("\n5. Testing controls...")
     print(f"   Zoom in: {camera.zoom_in()}")
-    print(f"   Zoom: {camera.get_zoom_setting()}")
+    print(f"   Zoom: {camera.get_zoom_level()}")
     print(f"   Pan right: {camera.pan_right()}")
     print(f"   Pan: {camera.get_pan_angle()}")
     

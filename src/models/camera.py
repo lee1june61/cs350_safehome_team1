@@ -3,37 +3,45 @@ SafeHome Camera Module
 ======================
 Main camera logic class for the SafeHome security system.
 
-This class implements the InterfaceCamera and manages a single camera's
-state including location, pan angle, zoom level, password protection,
-and enabled/disabled status.
+This class manages a single camera's state including location, pan angle,
+zoom level, password protection, and enabled/disabled status.
+Uses virtual_device_v3's DeviceCamera for actual hardware interaction.
 """
 
 from __future__ import annotations
 
+import sys
 import threading
-from typing import Optional, Tuple, Any
+from pathlib import Path
+from typing import Optional, List, Any
 
-from .interface_camera import InterfaceCamera
-from .device_camera import DeviceCamera
-from .exceptions import (
+# Import virtual_device_v3's DeviceCamera
+_virtual_device_path = Path(__file__).parent.parent.parent / 'virtual_device_v3' / 'virtual_device_v3'
+if str(_virtual_device_path) not in sys.path:
+    sys.path.insert(0, str(_virtual_device_path))
+
+from device.device_camera import DeviceCamera
+
+from ..utils.exceptions import (
     CameraDisabledError,
     CameraPasswordError,
     CameraValidationError
 )
 
 
-class SafeHomeCamera(InterfaceCamera):
+class SafeHomeCamera:
     """
     Main camera class for the SafeHome system.
     
     This class implements the complete logic for a single camera, managing
-    its state and delegating hardware operations to a DeviceCamera instance.
+    its state and delegating hardware operations to a DeviceCamera instance
+    from virtual_device_v3.
     
     Attributes:
         camera_id (int): Unique identifier for this camera
-        location (Tuple[int, int]): (x, y) coordinates of the camera location
+        location (List[int]): [x, y] coordinates of the camera location
         pan_angle (int): Current pan angle of the camera (-5 to +5)
-        zoom_setting (int): Current zoom level of the camera (1 to 9)
+        zoom_level (int): Current zoom level of the camera (1 to 9)
         password (Optional[str]): The password for this camera (if any)
         enabled (bool): Whether this camera is currently enabled
     """
@@ -55,15 +63,16 @@ class SafeHomeCamera(InterfaceCamera):
         """
         # Public attributes
         self.camera_id: int = camera_id
-        self.location: Tuple[int, int] = (x_coord, y_coord)
+        self.location: List[int] = [x_coord, y_coord]  # Changed to list
         self.pan_angle: int = 0
-        self.zoom_setting: int = 2
+        self.zoom_level: int = 2  # Changed from zoom_setting to zoom_level
         self.password: Optional[str] = None
         self.enabled: bool = False
         
         # Private attributes
         self._has_password: bool = False
-        self._device: DeviceCamera = DeviceCamera(camera_id)
+        self._device: DeviceCamera = DeviceCamera()  # No arguments
+        self._device.set_id(camera_id)  # Set ID after creation
         self._lock: threading.RLock = threading.RLock()
     
     # ------------------------------------------------------------------
@@ -84,17 +93,17 @@ class SafeHomeCamera(InterfaceCamera):
             if self.camera_id <= 0:
                 raise CameraValidationError("Camera ID must be positive")
             
-            if not isinstance(self.location, tuple) or len(self.location) != 2:
-                raise CameraValidationError("Location must be a tuple of (x, y)")
+            if not isinstance(self.location, list) or len(self.location) != 2:
+                raise CameraValidationError("Location must be a list of [x, y]")
             
             if not (self.MIN_PAN <= self.pan_angle <= self.MAX_PAN):
                 raise CameraValidationError(
                     f"Pan angle must be between {self.MIN_PAN} and {self.MAX_PAN}"
                 )
             
-            if not (self.MIN_ZOOM <= self.zoom_setting <= self.MAX_ZOOM):
+            if not (self.MIN_ZOOM <= self.zoom_level <= self.MAX_ZOOM):
                 raise CameraValidationError(
-                    f"Zoom setting must be between {self.MIN_ZOOM} and {self.MAX_ZOOM}"
+                    f"Zoom level must be between {self.MIN_ZOOM} and {self.MAX_ZOOM}"
                 )
             
             return True
@@ -108,7 +117,7 @@ class SafeHomeCamera(InterfaceCamera):
         Get the current camera view/frame.
         
         Returns:
-            Any: The current camera frame from the device
+            Any: The current camera frame (PIL Image) from the device
         
         Raises:
             CameraDisabledError: If camera is disabled
@@ -118,7 +127,7 @@ class SafeHomeCamera(InterfaceCamera):
                 raise CameraDisabledError(
                     f"Camera {self.camera_id} is disabled. Enable it first."
                 )
-            return self._device.get_frame()
+            return self._device.get_view()  # Use virtual_device_v3's method
     
     # ------------------------------------------------------------------
     # Zoom control methods
@@ -134,10 +143,11 @@ class SafeHomeCamera(InterfaceCamera):
         with self._lock:
             if not self.enabled:
                 return False
-            if self.zoom_setting >= self.MAX_ZOOM:
+            if self.zoom_level >= self.MAX_ZOOM:
                 return False
+            # Use virtual_device_v3's zoom_in method directly
             if self._device.zoom_in():
-                self.zoom_setting += 1
+                self.zoom_level += 1
                 return True
             return False
     
@@ -151,10 +161,11 @@ class SafeHomeCamera(InterfaceCamera):
         with self._lock:
             if not self.enabled:
                 return False
-            if self.zoom_setting <= self.MIN_ZOOM:
+            if self.zoom_level <= self.MIN_ZOOM:
                 return False
+            # Use virtual_device_v3's zoom_out method directly
             if self._device.zoom_out():
-                self.zoom_setting -= 1
+                self.zoom_level -= 1
                 return True
             return False
     
@@ -174,6 +185,7 @@ class SafeHomeCamera(InterfaceCamera):
                 return False
             if self.pan_angle <= self.MIN_PAN:
                 return False
+            # Use virtual_device_v3's pan_left method directly
             if self._device.pan_left():
                 self.pan_angle -= 1
                 return True
@@ -191,10 +203,32 @@ class SafeHomeCamera(InterfaceCamera):
                 return False
             if self.pan_angle >= self.MAX_PAN:
                 return False
+            # Use virtual_device_v3's pan_right method directly
             if self._device.pan_right():
                 self.pan_angle += 1
                 return True
             return False
+    
+    # ------------------------------------------------------------------
+    # Location management methods
+    # ------------------------------------------------------------------
+    
+    def set_location(self, new_location: List[int]) -> None:
+        """
+        Set the camera's location coordinates.
+        
+        Args:
+            new_location (List[int]): New [x, y] coordinates
+        
+        Raises:
+            CameraValidationError: If location format is invalid
+        """
+        with self._lock:
+            if not isinstance(new_location, list) or len(new_location) != 2:
+                raise CameraValidationError(
+                    "Location must be a list of [x, y] coordinates"
+                )
+            self.location = new_location.copy()
     
     # ------------------------------------------------------------------
     # Password management methods
@@ -274,15 +308,15 @@ class SafeHomeCamera(InterfaceCamera):
         with self._lock:
             return self.camera_id
     
-    def get_location(self) -> Tuple[int, int]:
+    def get_location(self) -> List[int]:
         """
         Get the camera's location coordinates.
         
         Returns:
-            Tuple[int, int]: A tuple of (x, y) coordinates
+            List[int]: A list of [x, y] coordinates
         """
         with self._lock:
-            return self.location
+            return self.location.copy()  # Return copy to prevent modification
     
     def get_pan_angle(self) -> int:
         """
@@ -294,15 +328,26 @@ class SafeHomeCamera(InterfaceCamera):
         with self._lock:
             return self.pan_angle
     
-    def get_zoom_setting(self) -> int:
+    def get_zoom_level(self) -> int:
         """
-        Get the current zoom setting of the camera.
+        Get the current zoom level of the camera.
         
         Returns:
             int: The current zoom level (1 to 9)
         """
         with self._lock:
-            return self.zoom_setting
+            return self.zoom_level
+    
+    # Backward compatibility alias
+    def get_zoom_setting(self) -> int:
+        """
+        Get the current zoom setting of the camera.
+        (Alias for get_zoom_level for backward compatibility)
+        
+        Returns:
+            int: The current zoom level (1 to 9)
+        """
+        return self.get_zoom_level()
     
     # ------------------------------------------------------------------
     # Cleanup methods
@@ -315,7 +360,7 @@ class SafeHomeCamera(InterfaceCamera):
         """
         with self._lock:
             if self._device:
-                self._device.stop()
+                self._device.stop()  # Stop the thread
     
     # ------------------------------------------------------------------
     # Special methods
@@ -323,7 +368,10 @@ class SafeHomeCamera(InterfaceCamera):
     
     def __del__(self) -> None:
         """Destructor to ensure cleanup."""
-        self.cleanup()
+        try:
+            self.cleanup()
+        except:
+            pass  # Ignore errors during cleanup
     
     def __repr__(self) -> str:
         """
@@ -333,5 +381,10 @@ class SafeHomeCamera(InterfaceCamera):
             str: A string describing the camera state
         """
         with self._lock:
-            return (f"SafeHomeCamera(id={self.camera_id}, location={self.location}, "
-                    f"enabled={self.enabled}, pan={self.pan_angle}, zoom={self.zoom_setting})")
+            return (
+                f"SafeHomeCamera(id={self.camera_id}, "
+                f"location={self.location}, "
+                f"enabled={self.enabled}, "
+                f"pan={self.pan_angle}, "
+                f"zoom={self.zoom_level})"
+            )

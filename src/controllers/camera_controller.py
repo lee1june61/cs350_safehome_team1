@@ -12,8 +12,8 @@ from __future__ import annotations
 import threading
 from typing import Dict, List, Optional, Any, Tuple
 
-from .safehome_camera import SafeHomeCamera
-from .exceptions import CameraNotFoundError, CameraPasswordError
+from ..models.camera import SafeHomeCamera
+from ..utils.exceptions import CameraNotFoundError, CameraPasswordError
 
 
 class CameraController:
@@ -329,7 +329,7 @@ class CameraController:
                     'location': camera.get_location(),
                     'enabled': camera.is_enabled(),
                     'pan_angle': camera.get_pan_angle(),
-                    'zoom_setting': camera.get_zoom_setting(),
+                    'zoom_level': camera.get_zoom_level(),
                     'has_password': camera.has_password()
                 }
                 camera_info_list.append(info)
@@ -368,3 +368,4 @@ class CameraController:
         with self._lock:
             return (f"CameraController(total_cameras={self.total_camera_number}, "
                     f"next_id={self.next_camera_id})")
+
