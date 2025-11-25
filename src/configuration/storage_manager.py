@@ -79,7 +79,6 @@ class StorageManager:
             try:
                 self.connection = sqlite3.connect(
                     self.db_path,
-                    detect_types=sqlite3.PARSE_DECLTYPES,
                     check_same_thread=False,
                 )
                 self.connection.row_factory = sqlite3.Row
@@ -434,7 +433,7 @@ class StorageManager:
                    severity,
                    user
             FROM logs
-            ORDER BY timestamp DESC
+            ORDER BY log_id DESC
             LIMIT ?
             """,
             (limit,),

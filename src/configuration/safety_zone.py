@@ -75,7 +75,11 @@ class SafetyZone:
 
     def to_dict(self) -> Dict[str, Any]:
         """Return dictionary representation suitable for persistence."""
-        return asdict(self)
+        data = asdict(self)
+        # Treat zone_id=0 as None for DB insertion
+        if data.get("zone_id") == 0:
+            data["zone_id"] = None
+        return data
 
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "SafetyZone":
