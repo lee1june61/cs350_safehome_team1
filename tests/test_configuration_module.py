@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from safehome.configuration import (
+from src.configuration import (
     AuthenticationError,
     ConfigurationError,
     LoginInterface,
@@ -278,6 +278,3 @@ def test_configuration_manager_zones_flow(storage_manager):
     # Delete
     assert config_manager.delete_safety_zone(stored_zone.zone_id) is True
     assert config_manager.get_all_safety_zones() == []
-
-
-
