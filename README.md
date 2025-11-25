@@ -1,8 +1,3 @@
-# SafeHome Project - Directory Structure
-
-## Project Structure
-
-```
 safehome_team1/
 ├── src/
 │   ├── __init__.py
@@ -82,4 +77,3 @@ safehome_team1/
 ├── requirements.txt
 ├── README.md
 └── .gitignore
-```

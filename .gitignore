@@ -1,3 +1,15 @@
+# AI가 생성한 문서 파일들 (프로젝트 제출 시 제외)
+IMPLEMENTATION_REPORT.md
+QUICKSTART.md
+HOW_TO_RUN.md
+INSTALL_PYTHON.md
+PROJECT_STRUCTURE.md
+
+# 테스트 파일들
+test_devices_simple.py
+test_devices_import.py
+test_new_structure.py
+
 # Python
 __pycache__/
 *.py[cod]
@@ -19,11 +31,18 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
 # Virtual Environment
 venv/
 ENV/
 env/
+.venv
 
 # IDEs
 .vscode/
@@ -43,4 +62,36 @@ htmlcov/
 
 # Project specific
 *.log
+.DS_Store
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environment variables
+.env
+.env.local
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# OS
+Thumbs.db
+desktop.ini
+
+# Examples output (선택사항)
+examples/*.pyc
+examples/__pycache__/
 
