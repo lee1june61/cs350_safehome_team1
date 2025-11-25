@@ -26,12 +26,15 @@ fi
 echo "🔧 Activating virtual environment..."
 source .venv/bin/activate
 
+# Set PYTHONPATH to include project root
+export PYTHONPATH="${PYTHONPATH}:$(pwd)"
+
 # Run tests
 echo "🧪 Running configuration module tests..."
 echo ""
 
 python -m pytest tests/test_configuration_module.py -v \
-    --cov=safehome/configuration \
+    --cov=src/configuration \
     --cov-report=term-missing:skip-covered \
     --cov-report=html
 
