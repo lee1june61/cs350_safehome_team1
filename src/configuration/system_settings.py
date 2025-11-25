@@ -38,9 +38,7 @@ class SystemSettings:
         self.monitoring_service_phone = data.get("monitoring_service_phone", "")
         self.homeowner_phone = data.get("homeowner_phone", "")
         self.system_lock_time = int(data.get("system_lock_time", self.system_lock_time))
-        self.alarm_delay_time = int(
-            data.get("alarm_delay_time", self.alarm_delay_time)
-        )
+        self.alarm_delay_time = int(data.get("alarm_delay_time", self.alarm_delay_time))
         self.max_login_attempts = int(
             data.get("max_login_attempts", self.max_login_attempts)
         )
@@ -95,9 +93,7 @@ class SystemSettings:
         settings.monitoring_service_phone = data.get(
             "monitoring_service_phone", settings.monitoring_service_phone
         )
-        settings.homeowner_phone = data.get(
-            "homeowner_phone", settings.homeowner_phone
-        )
+        settings.homeowner_phone = data.get("homeowner_phone", settings.homeowner_phone)
         settings.system_lock_time = int(
             data.get("system_lock_time", settings.system_lock_time)
         )
@@ -111,6 +107,3 @@ class SystemSettings:
             data.get("session_timeout", settings.session_timeout)
         )
         return settings
-
-
-
