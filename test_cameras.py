@@ -11,12 +11,14 @@ from pathlib import Path
 
 # Add the project directory to the path
 project_path = Path(__file__).parent
-if str(project_path) not in sys.path:
-    sys.path.insert(0, str(project_path))
+safehome_path = project_path / "safehome"
+for path in (project_path, safehome_path):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
 
-from src.controllers.camera_controller import CameraController
-from src.models.camera import SafeHomeCamera
-from src.utils.exceptions import CameraNotFoundError, CameraDisabledError
+from safehome.src.controllers.camera_controller import CameraController
+from safehome.src.devices.cameras.safehome_camera import SafeHomeCamera
+from safehome.src.utils.exceptions import CameraNotFoundError, CameraDisabledError
 
 
 def test_camera_controller() -> None:
@@ -55,6 +57,16 @@ def test_camera_controller() -> None:
     print("\n4. Enabling cameras...")
     controller.enable_cameras([cam1_id, cam2_id])
     print(f"   Enabled cameras {cam1_id} and {cam2_id}")
+
+    # Display single view
+    print("\n4.5 Displaying single camera view...")
+    single_view = controller.display_single_view(cam1_id)
+    print(f"   View type: {type(single_view).__name__}, Size: {getattr(single_view, 'size', 'unknown')}")
+
+    # Display thumbnail view
+    print("\n4.6 Displaying thumbnail views...")
+    thumbnails = controller.display_thumbnail_view()
+    print(f"   Captured {len(thumbnails)} thumbnails (only enabled cameras should appear)")
     
     # Set password for a camera
     print("\n5. Setting password for camera 1...")
@@ -198,6 +210,17 @@ def test_individual_camera() -> None:
     print(f"   Zoom: {camera.get_zoom_level()}")
     print(f"   Pan right: {camera.pan_right()}")
     print(f"   Pan: {camera.get_pan_angle()}")
+
+    # Test display view (should return PIL Image)
+    print("\n5.1 Displaying view while enabled...")
+    view = camera.display_view()
+    print(f"   View type: {type(view).__name__}, Size: {getattr(view, 'size', 'unknown')}")
+
+    # Test set_location
+    print("\n5.2 Updating location...")
+    new_location = [150, 250]
+    camera.set_location(new_location)
+    print(f"   New location: {camera.get_location()}")
     
     # Test validation
     print("\n6. Testing validation...")

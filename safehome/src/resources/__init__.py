@@ -1,0 +1,1 @@
+"""Resource assets for SafeHome."""

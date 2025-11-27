@@ -5,12 +5,15 @@ Run this to test the UI with skeleton system.
 import sys
 from pathlib import Path
 
-# Add src to Python path
+# Add safehome/src to Python path
 project_root = Path(__file__).parent
-sys.path.insert(0, str(project_root))
+safehome_root = project_root / "safehome"
+for path in (project_root, safehome_root):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
 
-from src.core import System
-from src.interfaces.control_panel import SafeHomeControlPanel
+from safehome.src.core import System
+from safehome.src.interfaces.control_panel import SafeHomeControlPanel
 
 
 def main():
