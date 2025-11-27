@@ -1,81 +1,130 @@
-"""SurveillancePage - Surveillance function main screen"""
+"""SurveillancePage - Camera surveillance menu (SRS GUI)"""
+import os
 import tkinter as tk
 from tkinter import ttk
+from PIL import Image, ImageTk
 from ..components.page import Page
 
 
+ASSETS_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'assets')
+
+
 class SurveillancePage(Page):
-    """Surveillance main page"""
+    """Surveillance page - SRS Section II 'Surveillance Function'"""
     
     def _build_ui(self) -> None:
-        self._create_header("Surveillance", back_page='major_function')
+        # Header
+        self._create_header("Surveillance Function", back_page='major_function')
         
+        # Main content
         content = ttk.Frame(self._frame)
-        content.pack(fill='both', expand=True, padx=20, pady=(0, 20))
+        content.pack(expand=True, fill='both', padx=20, pady=10)
+        content.columnconfigure(0, weight=1)
+        content.columnconfigure(1, weight=1)
+        content.rowconfigure(0, weight=1)
         
-        # Status display
-        left = ttk.LabelFrame(content, text="Camera Status", padding=15)
-        left.pack(side='left', fill='both', expand=True, padx=(0, 10))
+        # Left: Floor plan with camera icons
+        left_frame = ttk.LabelFrame(content, text="Floor Plan", padding=10)
+        left_frame.grid(row=0, column=0, sticky='nsew', padx=(0, 10))
         
-        self._total = ttk.Label(left, text="Total Cameras: -")
-        self._total.pack(anchor='w', pady=2)
-        self._enabled = ttk.Label(left, text="Enabled: -")
-        self._enabled.pack(anchor='w', pady=2)
-        self._disabled = ttk.Label(left, text="Disabled: -")
-        self._disabled.pack(anchor='w', pady=2)
-        self._protected = ttk.Label(left, text="Password Protected: -")
-        self._protected.pack(anchor='w', pady=2)
+        self._canvas = tk.Canvas(left_frame, bg='white', width=400, height=400)
+        self._canvas.pack(expand=True, fill='both')
+        self._canvas.bind('<Button-1>', self._on_canvas_click)
+        self._load_floorplan()
         
-        ttk.Separator(left).pack(fill='x', pady=15)
+        # Right: Buttons and camera list
+        right_frame = ttk.Frame(content)
+        right_frame.grid(row=0, column=1, sticky='nsew')
         
-        btn_frame = ttk.Frame(left)
-        btn_frame.pack()
-        ttk.Button(btn_frame, text="Enable All", command=self._enable_all, 
-                  width=12).pack(side='left', padx=5)
-        ttk.Button(btn_frame, text="Disable All", command=self._disable_all, 
-                  width=12).pack(side='left', padx=5)
+        # Main buttons
+        btn_frame = ttk.Frame(right_frame)
+        btn_frame.pack(fill='x', pady=20)
         
-        # Navigation
-        right = ttk.Frame(content)
-        right.pack(side='right', fill='both', expand=True, padx=(10, 0))
+        tk.Button(btn_frame, text="Pick a Camera", font=('Arial', 14),
+                 bg='#2196F3', fg='white', height=2,
+                 command=lambda: self.navigate_to('camera_list')).pack(fill='x', pady=5)
         
-        view_frame = ttk.LabelFrame(right, text="View Cameras", padding=10)
-        view_frame.pack(fill='x', pady=(0, 10))
-        ttk.Button(view_frame, text="Pick a Camera", 
-                  command=lambda: self.navigate_to('camera_list'), width=25).pack(pady=5)
-        ttk.Button(view_frame, text="All Cameras (Thumbnails)", 
-                  command=lambda: self.navigate_to('thumbnail_view'), width=25).pack(pady=5)
+        tk.Button(btn_frame, text="All Cameras", font=('Arial', 14),
+                 bg='#4CAF50', fg='white', height=2,
+                 command=lambda: self.navigate_to('thumbnail_view')).pack(fill='x', pady=5)
+        
+        # Camera list
+        list_frame = ttk.LabelFrame(right_frame, text="Cameras", padding=10)
+        list_frame.pack(fill='both', expand=True, pady=10)
+        
+        self._camera_list = tk.Listbox(list_frame, font=('Arial', 11))
+        self._camera_list.pack(fill='both', expand=True)
+        self._camera_list.bind('<Double-Button-1>', self._on_camera_double_click)
+        
+        # Instructions
+        ttk.Label(right_frame, text="Double-click camera to view", 
+                 foreground='gray').pack(pady=5)
     
-    def _enable_all(self) -> None:
-        response = self.send_to_system('enable_all_cameras')
-        if response.get('success'):
-            self._show_message("Success", "All cameras enabled")
-            self.refresh()
-        else:
-            self._show_message("Error", response.get('message', 'Failed'), 'error')
+    def _load_floorplan(self) -> None:
+        """Load floorplan and draw camera icons"""
+        try:
+            path = os.path.join(ASSETS_DIR, 'floorplan.png')
+            img = Image.open(path)
+            img = img.resize((400, 400), Image.LANCZOS)
+            self._floorplan_img = ImageTk.PhotoImage(img)
+            self._canvas.create_image(0, 0, anchor='nw', image=self._floorplan_img)
+        except Exception:
+            self._canvas.create_rectangle(10, 10, 390, 390, outline='gray')
+            self._canvas.create_text(200, 200, text="Floor Plan", fill='gray')
+        
+        # Draw camera icons
+        self._draw_camera_icons()
     
-    def _disable_all(self) -> None:
-        if not self._ask_confirm("Confirm", "Disable all cameras?"):
-            return
-        response = self.send_to_system('disable_all_cameras')
-        if response.get('success'):
-            self._show_message("Success", "All cameras disabled")
-            self.refresh()
-        else:
-            self._show_message("Error", response.get('message', 'Failed'), 'error')
+    def _draw_camera_icons(self) -> None:
+        """Draw camera icons on floor plan"""
+        # Camera positions (mock data - should come from system)
+        positions = [
+            (100, 80, 1, "Front Door"),
+            (300, 150, 2, "Back Yard"),
+            (200, 300, 3, "Garage"),
+        ]
+        
+        self._camera_positions = {}
+        for x, y, cam_id, name in positions:
+            # Draw camera icon (small circle)
+            self._canvas.create_oval(x-15, y-15, x+15, y+15, fill='blue', tags=f'cam_{cam_id}')
+            self._canvas.create_text(x, y, text='📷', font=('Arial', 12), tags=f'cam_{cam_id}')
+            self._canvas.create_text(x, y+25, text=name, font=('Arial', 8), tags=f'cam_{cam_id}')
+            self._camera_positions[cam_id] = (x, y, name)
     
-    def on_show(self) -> None:
-        self.refresh()
+    def _on_canvas_click(self, event) -> None:
+        """Handle click on floor plan"""
+        for cam_id, (x, y, name) in self._camera_positions.items():
+            if abs(event.x - x) < 20 and abs(event.y - y) < 20:
+                self._view_camera(cam_id)
+                break
     
-    def refresh(self) -> None:
+    def _on_camera_double_click(self, event) -> None:
+        """Handle double-click on camera list"""
+        selection = self._camera_list.curselection()
+        if selection and hasattr(self, '_cameras'):
+            camera = self._cameras[selection[0]]
+            self._view_camera(camera['id'])
+    
+    def _view_camera(self, camera_id: int) -> None:
+        """Navigate to camera view"""
+        self._web_interface.set_context('camera_id', camera_id)
+        self.navigate_to('single_camera_view')
+    
+    def _load_cameras(self) -> None:
+        """Load camera list from system"""
+        self._camera_list.delete(0, tk.END)
         response = self.send_to_system('get_cameras')
+        
         if response.get('success'):
             cameras = response.get('data', [])
-            total = len(cameras)
-            enabled = sum(1 for c in cameras if c.get('enabled'))
-            protected = sum(1 for c in cameras if c.get('has_password'))
-            
-            self._total.config(text=f"Total Cameras: {total}")
-            self._enabled.config(text=f"Enabled: {enabled}")
-            self._disabled.config(text=f"Disabled: {total - enabled}")
-            self._protected.config(text=f"Password Protected: {protected}")
+            for cam in cameras:
+                status = "✓" if cam.get('enabled') else "✗"
+                lock = "🔒" if cam.get('has_password') else ""
+                self._camera_list.insert(tk.END, f"{status} Camera {cam['id']}: {cam['location']} {lock}")
+            self._cameras = cameras
+        else:
+            self._cameras = []
+    
+    def on_show(self) -> None:
+        self._load_cameras()

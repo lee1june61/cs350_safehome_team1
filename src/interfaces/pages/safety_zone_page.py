@@ -1,122 +1,168 @@
-"""SafetyZonePage - Safety zone management"""
+"""SafetyZonePage - Safety zone management with floorplan (SRS GUI)"""
+import os
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
+from PIL import Image, ImageTk
 from ..components.page import Page
-from ..components.floor_plan import FloorPlan
+
+
+ASSETS_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'assets')
 
 
 class SafetyZonePage(Page):
-    """Safety zone management page"""
+    """Safety Zone page - SRS Section II 'Security Function - Safety zone'"""
     
     def _build_ui(self) -> None:
-        self._create_header("Safety Zones", back_page='security')
+        # Header
+        self._create_header("Safety Zone", back_page='security')
         
+        # Main content
         content = ttk.Frame(self._frame)
-        content.pack(fill='both', expand=True, padx=20, pady=(0, 20))
+        content.pack(expand=True, fill='both', padx=20, pady=10)
+        content.columnconfigure(0, weight=2)
+        content.columnconfigure(1, weight=1)
+        content.rowconfigure(0, weight=1)
+        
+        # Left: Floor plan
+        left_frame = ttk.LabelFrame(content, text="Floor Plan", padding=10)
+        left_frame.grid(row=0, column=0, sticky='nsew', padx=(0, 10), pady=5)
+        
+        self._canvas = tk.Canvas(left_frame, bg='white', width=400, height=350)
+        self._canvas.pack(expand=True, fill='both')
+        self._load_floorplan()
+        
+        # Right: Zone list and controls
+        right_frame = ttk.Frame(content)
+        right_frame.grid(row=0, column=1, sticky='nsew', pady=5)
         
         # Zone list
-        left = ttk.LabelFrame(content, text="Zones", padding=10)
-        left.pack(side='left', fill='both', expand=True, padx=(0, 10))
-        
-        list_frame = ttk.Frame(left)
+        list_frame = ttk.LabelFrame(right_frame, text="Safety Zones", padding=10)
         list_frame.pack(fill='both', expand=True)
-        scrollbar = ttk.Scrollbar(list_frame)
-        scrollbar.pack(side='right', fill='y')
-        self._listbox = tk.Listbox(list_frame, yscrollcommand=scrollbar.set, height=10)
-        self._listbox.pack(side='left', fill='both', expand=True)
-        scrollbar.config(command=self._listbox.yview)
-        self._listbox.bind('<<ListboxSelect>>', self._on_select)
         
-        btn_frame = ttk.Frame(left)
-        btn_frame.pack(fill='x', pady=(10, 0))
-        ttk.Button(btn_frame, text="Arm", command=self._arm_zone, width=10).pack(side='left', padx=2)
-        ttk.Button(btn_frame, text="Disarm", command=self._disarm_zone, width=10).pack(side='left', padx=2)
+        self._zone_list = tk.Listbox(list_frame, height=10, font=('Arial', 11))
+        self._zone_list.pack(fill='both', expand=True, pady=(0, 10))
+        self._zone_list.bind('<<ListboxSelect>>', self._on_zone_select)
         
-        # Floor plan and actions
-        right = ttk.Frame(content)
-        right.pack(side='right', fill='both', expand=True, padx=(10, 0))
+        # Zone status
+        self._zone_status = ttk.Label(list_frame, text="Select a zone", font=('Arial', 10))
+        self._zone_status.pack(pady=5)
         
-        plan_frame = ttk.LabelFrame(right, text="Floor Plan", padding=10)
-        plan_frame.pack(fill='both', expand=True, pady=(0, 10))
-        self._floor_plan = FloorPlan(plan_frame, 300, 200)
-        self._floor_plan.create_canvas().pack()
+        # Control buttons
+        btn_frame = ttk.Frame(right_frame)
+        btn_frame.pack(fill='x', pady=10)
         
-        action_frame = ttk.LabelFrame(right, text="Zone Management", padding=10)
-        action_frame.pack(fill='x')
-        for text, cmd in [("Create", self._create), ("Update", self._update), ("Delete", self._delete)]:
-            ttk.Button(action_frame, text=text, command=cmd, width=12).pack(side='left', padx=5)
+        self._btn_arm = ttk.Button(btn_frame, text="Arm Zone", command=self._arm_zone, width=15)
+        self._btn_arm.pack(side='left', padx=5)
         
-        self._zones = []
+        self._btn_disarm = ttk.Button(btn_frame, text="Disarm Zone", command=self._disarm_zone, width=15)
+        self._btn_disarm.pack(side='left', padx=5)
+        
+        # Zone management buttons
+        mgmt_frame = ttk.LabelFrame(right_frame, text="Zone Management", padding=10)
+        mgmt_frame.pack(fill='x', pady=10)
+        
+        ttk.Button(mgmt_frame, text="Create Zone", command=self._create_zone, width=15).pack(pady=3)
+        ttk.Button(mgmt_frame, text="Update Zone", command=self._update_zone, width=15).pack(pady=3)
+        ttk.Button(mgmt_frame, text="Delete Zone", command=self._delete_zone, width=15).pack(pady=3)
+    
+    def _load_floorplan(self) -> None:
+        """Load floorplan.png from assets"""
+        try:
+            path = os.path.join(ASSETS_DIR, 'floorplan.png')
+            img = Image.open(path)
+            img = img.resize((400, 350), Image.LANCZOS)
+            self._floorplan_img = ImageTk.PhotoImage(img)
+            self._canvas.create_image(0, 0, anchor='nw', image=self._floorplan_img)
+        except Exception as e:
+            # Draw placeholder if image not found
+            self._canvas.create_rectangle(10, 10, 390, 340, outline='gray')
+            self._canvas.create_text(200, 175, text="Floor Plan\n(floorplan.png)", 
+                                    font=('Arial', 14), fill='gray')
     
     def _load_zones(self) -> None:
-        self._listbox.delete(0, tk.END)
+        """Load safety zones from system"""
+        self._zone_list.delete(0, tk.END)
         response = self.send_to_system('get_safety_zones')
+        
         if response.get('success'):
-            self._zones = response.get('data', [])
-            for zone in self._zones:
-                status = "🟢" if zone.get('armed') else "⚪"
-                self._listbox.insert(tk.END, f"{status} {zone['name']}")
+            zones = response.get('data', [])
+            for zone in zones:
+                status = "🔴" if zone.get('armed') else "⚪"
+                self._zone_list.insert(tk.END, f"{status} {zone['name']}")
+            self._zones = zones
+        else:
+            self._zones = []
     
-    def _on_select(self, event) -> None:
-        sel = self._listbox.curselection()
-        if sel and self._zones:
-            zone = self._zones[sel[0]]
-            self._floor_plan.highlight_devices(zone.get('sensor_ids', []))
+    def _on_zone_select(self, event) -> None:
+        selection = self._zone_list.curselection()
+        if selection and hasattr(self, '_zones') and selection[0] < len(self._zones):
+            zone = self._zones[selection[0]]
+            status = "Armed" if zone.get('armed') else "Disarmed"
+            self._zone_status.config(text=f"Zone: {zone['name']} - {status}")
+    
+    def _get_selected_zone(self):
+        selection = self._zone_list.curselection()
+        if selection and hasattr(self, '_zones') and selection[0] < len(self._zones):
+            return self._zones[selection[0]]
+        return None
     
     def _arm_zone(self) -> None:
-        sel = self._listbox.curselection()
-        if not sel:
-            return self._show_message("Info", "Select a zone first", 'warning')
-        zone = self._zones[sel[0]]
-        response = self.send_to_system('arm_safety_zone', zone_id=zone['id'])
-        if response.get('success'):
-            self._show_message("Success", f"Zone '{zone['name']}' armed")
-            self._load_zones()
+        zone = self._get_selected_zone()
+        if zone:
+            response = self.send_to_system('arm_zone', zone_id=zone['id'])
+            if response.get('success'):
+                messagebox.showinfo("Success", f"Zone '{zone['name']}' armed")
+                self._load_zones()
         else:
-            self._show_message("Error", response.get('message', 'Failed'), 'error')
+            messagebox.showwarning("Warning", "Please select a zone")
     
     def _disarm_zone(self) -> None:
-        sel = self._listbox.curselection()
-        if not sel:
-            return self._show_message("Info", "Select a zone first", 'warning')
-        zone = self._zones[sel[0]]
-        response = self.send_to_system('disarm_safety_zone', zone_id=zone['id'])
-        if response.get('success'):
-            self._show_message("Success", f"Zone '{zone['name']}' disarmed")
-            self._load_zones()
+        zone = self._get_selected_zone()
+        if zone:
+            response = self.send_to_system('disarm_zone', zone_id=zone['id'])
+            if response.get('success'):
+                messagebox.showinfo("Success", f"Zone '{zone['name']}' disarmed")
+                self._load_zones()
         else:
-            self._show_message("Error", response.get('message', 'Failed'), 'error')
+            messagebox.showwarning("Warning", "Please select a zone")
     
-    def _create(self) -> None:
-        from .dialogs.zone_dialog import ZoneDialog
-        ZoneDialog(self._frame.winfo_toplevel(), self._web_interface, 'create').show()
-        self._load_zones()
+    def _create_zone(self) -> None:
+        # Simple dialog for zone creation
+        name = tk.simpledialog.askstring("Create Zone", "Enter zone name:")
+        if name:
+            response = self.send_to_system('create_safety_zone', name=name, sensor_ids=[])
+            if response.get('success'):
+                messagebox.showinfo("Success", f"Zone '{name}' created")
+                self._load_zones()
     
-    def _update(self) -> None:
-        sel = self._listbox.curselection()
-        if not sel:
-            return self._show_message("Info", "Select a zone first", 'warning')
-        from .dialogs.zone_dialog import ZoneDialog
-        ZoneDialog(self._frame.winfo_toplevel(), self._web_interface, 
-                  'update', self._zones[sel[0]]).show()
-        self._load_zones()
-    
-    def _delete(self) -> None:
-        sel = self._listbox.curselection()
-        if not sel:
-            return self._show_message("Info", "Select a zone first", 'warning')
-        zone = self._zones[sel[0]]
-        if not self._ask_confirm("Delete", f"Delete zone '{zone['name']}'?"):
-            return
-        response = self.send_to_system('delete_safety_zone', zone_id=zone['id'])
-        if response.get('success'):
-            self._show_message("Success", "Zone deleted")
-            self._load_zones()
+    def _update_zone(self) -> None:
+        zone = self._get_selected_zone()
+        if zone:
+            name = tk.simpledialog.askstring("Update Zone", "Enter new name:", 
+                                            initialvalue=zone['name'])
+            if name:
+                response = self.send_to_system('update_safety_zone', 
+                                              zone_id=zone['id'], name=name, sensor_ids=[])
+                if response.get('success'):
+                    messagebox.showinfo("Success", "Zone updated")
+                    self._load_zones()
         else:
-            self._show_message("Error", response.get('message', 'Failed'), 'error')
+            messagebox.showwarning("Warning", "Please select a zone")
+    
+    def _delete_zone(self) -> None:
+        zone = self._get_selected_zone()
+        if zone:
+            if messagebox.askyesno("Confirm", f"Delete zone '{zone['name']}'?"):
+                response = self.send_to_system('delete_safety_zone', zone_id=zone['id'])
+                if response.get('success'):
+                    messagebox.showinfo("Success", "Zone deleted")
+                    self._load_zones()
+        else:
+            messagebox.showwarning("Warning", "Please select a zone")
     
     def on_show(self) -> None:
         self._load_zones()
-        response = self.send_to_system('get_sensors')
-        if response.get('success'):
-            self._floor_plan.load_devices_from_list(response.get('data', []))
+
+
+# Import simpledialog
+import tkinter.simpledialog

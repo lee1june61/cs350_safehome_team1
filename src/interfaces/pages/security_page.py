@@ -1,98 +1,87 @@
-"""SecurityPage - Security function main screen"""
+"""SecurityPage - Security function menu (SRS GUI)"""
 import tkinter as tk
 from tkinter import ttk
 from ..components.page import Page
 
 
 class SecurityPage(Page):
-    """Security management page"""
+    """Security page - SRS Section II 'Security Function'"""
     
     def _build_ui(self) -> None:
-        self._create_header("Security", back_page='major_function')
+        # Header
+        self._create_header("Security Function", back_page='major_function')
         
-        content = ttk.Frame(self._frame)
-        content.pack(fill='both', expand=True, padx=20, pady=(0, 20))
+        # Phone/Address validation (SRS requires this)
+        validation_frame = ttk.LabelFrame(self._frame, text="Identity Confirmation", padding=15)
+        validation_frame.pack(fill='x', padx=30, pady=10)
         
-        # Arm/Disarm controls
-        left = ttk.LabelFrame(content, text="Arm/Disarm", padding=15)
-        left.pack(side='left', fill='both', expand=True, padx=(0, 10))
+        ttk.Label(validation_frame, text="Enter phone number or address:").pack(anchor='w')
         
-        self._status_label = ttk.Label(left, text="Status: DISARMED", 
-                                       font=('Arial', 14, 'bold'), foreground='green')
-        self._status_label.pack(pady=(0, 20))
+        input_frame = ttk.Frame(validation_frame)
+        input_frame.pack(fill='x', pady=5)
         
-        ttk.Label(left, text="Select Mode:").pack(anchor='w')
-        self._mode_var = tk.StringVar(value='HOME')
-        for mode in ['HOME', 'AWAY', 'NIGHT', 'EXTENDED', 'GUEST']:
-            ttk.Radiobutton(left, text=mode, variable=self._mode_var, 
-                           value=mode).pack(anchor='w', pady=2)
+        self._validation_var = tk.StringVar()
+        ttk.Entry(input_frame, textvariable=self._validation_var, width=40).pack(side='left', padx=(0, 10))
+        ttk.Button(input_frame, text="Verify", command=self._verify).pack(side='left')
         
-        btn_frame = ttk.Frame(left)
-        btn_frame.pack(pady=20)
-        self._arm_btn = ttk.Button(btn_frame, text="ARM", command=self._arm, width=12)
-        self._arm_btn.pack(side='left', padx=5)
-        self._disarm_btn = ttk.Button(btn_frame, text="DISARM", command=self._disarm, 
-                                      width=12, state='disabled')
-        self._disarm_btn.pack(side='left', padx=5)
+        self._validation_status = ttk.Label(validation_frame, text="")
+        self._validation_status.pack(anchor='w', pady=5)
         
-        ttk.Separator(left).pack(fill='x', pady=15)
-        ttk.Button(left, text="🚨 PANIC", command=self._panic, width=20).pack()
+        # Function buttons (disabled until verified)
+        self._buttons_frame = ttk.Frame(self._frame)
+        self._buttons_frame.pack(expand=True, fill='both', padx=30, pady=20)
         
-        # Navigation
-        right = ttk.Frame(content)
-        right.pack(side='right', fill='both', expand=True, padx=(10, 0))
+        self._buttons_frame.columnconfigure(0, weight=1)
+        self._buttons_frame.rowconfigure((0, 1, 2, 3), weight=1)
         
-        for frame_name, buttons in [
-            ("Safety Zones", [("Manage Safety Zones", 'safety_zone')]),
-            ("SafeHome Modes", [("Set Mode", 'safehome_mode'), 
-                               ("Configure Modes", 'safehome_mode_configure')]),
-            ("Logs", [("View Intrusion Logs", 'view_log')]),
-        ]:
-            f = ttk.LabelFrame(right, text=frame_name, padding=10)
-            f.pack(fill='x', pady=(0, 10))
-            for text, page in buttons:
-                ttk.Button(f, text=text, command=lambda p=page: self.navigate_to(p),
-                          width=25).pack(pady=3)
+        # Safety Zone button
+        self._btn_zone = tk.Button(
+            self._buttons_frame, text="Safety Zone", font=('Arial', 16),
+            bg='#607D8B', fg='white', state='disabled',
+            command=lambda: self.navigate_to('safety_zone'), height=2
+        )
+        self._btn_zone.grid(row=0, column=0, sticky='nsew', padx=20, pady=10)
+        
+        # Security Mode button (Set SafeHome Mode)
+        self._btn_mode = tk.Button(
+            self._buttons_frame, text="Set SafeHome Mode", font=('Arial', 16),
+            bg='#607D8B', fg='white', state='disabled',
+            command=lambda: self.navigate_to('safehome_mode'), height=2
+        )
+        self._btn_mode.grid(row=1, column=0, sticky='nsew', padx=20, pady=10)
+        
+        # View Intrusion Log button
+        self._btn_log = tk.Button(
+            self._buttons_frame, text="View Intrusion Log", font=('Arial', 16),
+            bg='#607D8B', fg='white', state='disabled',
+            command=lambda: self.navigate_to('view_log'), height=2
+        )
+        self._btn_log.grid(row=2, column=0, sticky='nsew', padx=20, pady=10)
+        
+        # Redefine Security Modes button
+        self._btn_redefine = tk.Button(
+            self._buttons_frame, text="Redefine Security Modes", font=('Arial', 16),
+            bg='#607D8B', fg='white', state='disabled',
+            command=lambda: self.navigate_to('safehome_mode_configure'), height=2
+        )
+        self._btn_redefine.grid(row=3, column=0, sticky='nsew', padx=20, pady=10)
     
-    def _arm(self) -> None:
-        response = self.send_to_system('arm_system', mode=self._mode_var.get())
-        if response.get('success'):
-            self._show_message("Success", f"System armed: {self._mode_var.get()}")
-            self.refresh()
+    def _verify(self) -> None:
+        """Verify phone/address - enables buttons"""
+        value = self._validation_var.get().strip()
+        if value:
+            self._validation_status.config(text="✓ Verified", foreground='green')
+            self._enable_buttons()
         else:
-            self._show_message("Error", response.get('message', 'Failed'), 'error')
+            self._validation_status.config(text="Please enter phone or address", foreground='red')
     
-    def _disarm(self) -> None:
-        response = self.send_to_system('disarm_system')
-        if response.get('success'):
-            self._show_message("Success", "System disarmed")
-            self.refresh()
-        else:
-            self._show_message("Error", response.get('message', 'Failed'), 'error')
-    
-    def _panic(self) -> None:
-        if not self._ask_confirm("Panic", "Trigger alarm and call monitoring?"):
-            return
-        response = self.send_to_system('panic')
-        if response.get('success'):
-            self._show_message("Alert", "Panic triggered. Monitoring called.")
-        else:
-            self._show_message("Error", response.get('message', 'Failed'), 'error')
+    def _enable_buttons(self) -> None:
+        for btn in [self._btn_zone, self._btn_mode, self._btn_log, self._btn_redefine]:
+            btn.config(state='normal', bg='#2196F3')
     
     def on_show(self) -> None:
-        self.refresh()
-    
-    def refresh(self) -> None:
-        response = self.send_to_system('get_status')
-        if response.get('success'):
-            armed = response.get('data', {}).get('armed', False)
-            mode = response.get('data', {}).get('mode', 'None')
-            
-            if armed:
-                self._status_label.config(text=f"Status: ARMED ({mode})", foreground='red')
-                self._arm_btn.config(state='disabled')
-                self._disarm_btn.config(state='normal')
-            else:
-                self._status_label.config(text="Status: DISARMED", foreground='green')
-                self._arm_btn.config(state='normal')
-                self._disarm_btn.config(state='disabled')
+        # Reset verification
+        self._validation_var.set('')
+        self._validation_status.config(text='')
+        for btn in [self._btn_zone, self._btn_mode, self._btn_log, self._btn_redefine]:
+            btn.config(state='disabled', bg='#607D8B')
