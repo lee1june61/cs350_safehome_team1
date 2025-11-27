@@ -1,110 +1,112 @@
 """
-Motion detection sensor implementation.
-PIR (Passive Infrared) motion sensor simulation.
+Custom motion detection sensor.
+A detailed PIR (Passive Infrared) motion sensor simulation that extends the base
+virtual device.
 """
 import random
 import time
-from .interfaces import InterfaceSensor
+from ..virtual_devices.device_motion_detector import DeviceMotionDetector as BaseMotionDetector
 
 
-class DeviceMotionDetector(InterfaceSensor):
+class CustomMotionDetector(BaseMotionDetector):
     """
-    Virtual motion detection sensor.
-    Simulates PIR sensor behavior for detecting movement.
+    A custom, more detailed virtual motion detection sensor.
+    It simulates PIR sensor behavior, including battery drain, sensitivity,
+    and random triggering, while extending the base DeviceMotionDetector.
     """
     
     def __init__(self, location: str, sensor_id: int):
         """
-        Initialize motion sensor.
+        Initialize the custom motion sensor.
         
         Args:
             location: Physical location (e.g., "Hallway", "Living Room")
             sensor_id: Unique sensor identifier
         """
+        super().__init__()
+        # Override the ID assigned by the base class to use the specific one provided.
+        self.sensor_id = sensor_id
+        
         self._location = location
-        self._sensor_id = sensor_id
-        self._armed = False
-        self._triggered = False
+        self._triggered = False  # Custom trigger state
         self._battery_level = 100.0
         self._last_trigger_time = 0
         self._detection_range = 5.0  # meters
         self._sensitivity = 0.5  # 0.0 (low) to 1.0 (high)
-    
+
     # ============================================================
-    # InterfaceSensor Implementation
+    # Override and extend base class methods
     # ============================================================
     
-    def get_location(self) -> str:
-        return self._location
-    
-    def get_type(self) -> str:
-        return "motion"
-    
-    def is_triggered(self) -> bool:
+    def read(self) -> bool:
         """
         Check if motion is detected.
-        In simulation mode, randomly triggers to simulate real motion detection.
+        In simulation mode, randomly triggers to simulate real motion detection
+        and updates the base class state.
         """
-        if not self._armed:
+        if not self.armed:  # 'self.armed' is from the base class
             return False
         
         current_time = time.time()
         
         # Cooldown period (prevent rapid re-triggering)
         if current_time - self._last_trigger_time < 5:
-            return self._triggered
+            return self.detected # 'self.detected' is from the base class
         
-        # Simulate random motion detection (10% chance per check when armed)
-        # In real implementation, this would read from actual PIR sensor
+        # Simulate random motion detection
         if random.random() < (0.1 * self._sensitivity):
             self._triggered = True
             self._last_trigger_time = current_time
-            return True
-        
-        self._triggered = False
-        return False
-    
-    def arm(self) -> bool:
+            self.intrude()  # Call base class method to set self.detected = True
+        else:
+            self._triggered = False
+            self.release()  # Call base class method to set self.detected = False
+            
+        return self.detected
+
+    def arm(self):
         """Arm the motion sensor for detection."""
-        self._armed = True
+        super().arm()  # Sets self.armed = True in the base class
         self._triggered = False
-        return True
     
-    def disarm(self) -> bool:
+    def disarm(self):
         """Disarm the motion sensor."""
-        self._armed = False
+        super().disarm() # Sets self.armed = False in the base class
         self._triggered = False
-        return True
+
+    # ============================================================
+    # Custom methods specific to this detailed simulation
+    # ============================================================
     
-    def is_armed(self) -> bool:
-        return self._armed
-    
+    def get_location(self) -> str:
+        return self._location
+
+    def get_type(self) -> str:
+        return "motion_custom"
+
     def get_battery_level(self) -> int:
         """Get battery level (slowly drains when armed)."""
-        # Simulate slow battery drain
-        if self._armed and self._battery_level > 0:
+        if self.armed and self._battery_level > 0:
             self._battery_level -= 0.01
         
         return max(0, int(self._battery_level))
-    
-    # ============================================================
-    # Additional Motion Sensor Methods
-    # ============================================================
-    
+
     def get_sensor_id(self) -> int:
         """Get sensor ID."""
-        return self._sensor_id
+        return self.sensor_id
     
     def reset_trigger(self):
         """Reset triggered state (for testing/simulation)."""
         self._triggered = False
+        self.release()
         self._last_trigger_time = 0
     
     def force_trigger(self):
         """Force trigger for testing purposes."""
-        if self._armed:
+        if self.armed:
             self._triggered = True
             self._last_trigger_time = time.time()
+            self.intrude()
     
     def set_sensitivity(self, sensitivity: float):
         """
@@ -130,11 +132,11 @@ class DeviceMotionDetector(InterfaceSensor):
     def get_status(self) -> dict:
         """Get comprehensive sensor status."""
         return {
-            'sensor_id': self._sensor_id,
-            'type': 'motion',
+            'id': f"M{self.sensor_id}",
+            'type': self.get_type(),
             'location': self._location,
-            'armed': self._armed,
-            'triggered': self._triggered,
+            'armed': self.armed,
+            'triggered': self.detected,
             'battery': self.get_battery_level(),
             'sensitivity': self._sensitivity,
             'range': self._detection_range,
@@ -142,9 +144,9 @@ class DeviceMotionDetector(InterfaceSensor):
         }
     
     def __repr__(self):
-        status = "ARMED" if self._armed else "DISARMED"
-        trigger = " [TRIGGERED]" if self._triggered else ""
+        status = "ARMED" if self.armed else "DISARMED"
+        trigger = " [TRIGGERED]" if self.detected else ""
         return (
-            f"DeviceMotionDetector(id={self._sensor_id}, location='{self._location}', "
-            f"status={status}{trigger}, battery={self.get_battery_level()}%)"
+            f"CustomMotionDetector(id={self.sensor_id}, location='{self._location}', "
+            f"status={status}{trigger}, battery={int(self._battery_level)}%)"
         )

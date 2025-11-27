@@ -14,6 +14,28 @@ Reference: SRS Section V.2.b (Log onto system through web browser)
 import tkinter as tk
 from tkinter import messagebox
 from typing import Callable, List, Optional
+from pathlib import Path
+
+try:
+    from PIL import Image, ImageTk
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
+
+
+def find_floorplan_path() -> Optional[str]:
+    """Find the floorplan.png file in virtual_device_v4 package."""
+    base_paths = [
+        Path(__file__).parent.parent.parent.parent / "virtual_device_v4" / "virtual_device_v4" / "floorplan.png",
+        Path(__file__).parent.parent.parent.parent / "virtual_device_v4" / "floorplan.png",
+        Path("virtual_device_v4/virtual_device_v4/floorplan.png"),
+        Path("virtual_device_v4/floorplan.png"),
+    ]
+    
+    for path in base_paths:
+        if path.exists():
+            return str(path.resolve())
+    return None
 
 
 class MainPage:
@@ -60,6 +82,10 @@ class MainPage:
         self.status_label: Optional[tk.Label] = None
         self.system_mode_label: Optional[tk.Label] = None
         self.device_items = {}  # device_id -> canvas_item_id
+        
+        # Floor plan image
+        self._floorplan_image: Optional[ImageTk.PhotoImage] = None
+        self._floorplan_path = find_floorplan_path()
 
     def build(self) -> tk.Frame:
         """Build main page with floor plan.
@@ -185,8 +211,8 @@ class MainPage:
         )
         self.floor_plan_canvas.pack(fill=tk.BOTH, expand=True)
 
-        # Draw placeholder floor plan
-        self._draw_placeholder_floor_plan()
+        # Load floorplan image or draw placeholder
+        self._draw_floor_plan()
 
         # Bind click event
         self.floor_plan_canvas.bind("<Button-1>", self._handle_canvas_click)
@@ -202,6 +228,53 @@ class MainPage:
         instructions.pack(pady=5)
 
         return panel
+
+    def _draw_floor_plan(self) -> None:
+        """Draw the floor plan - either from image or placeholder."""
+        if self._load_floorplan_image():
+            self._draw_floorplan_image()
+        else:
+            self._draw_placeholder_floor_plan()
+
+    def _load_floorplan_image(self) -> bool:
+        """Load the floorplan.png image.
+        
+        Returns:
+            True if image was loaded successfully, False otherwise.
+        """
+        if not HAS_PIL or not self._floorplan_path:
+            return False
+        
+        try:
+            pil_image = Image.open(self._floorplan_path)
+            
+            # Resize to fit canvas while maintaining aspect ratio
+            canvas_width = 800
+            canvas_height = 600
+            img_width, img_height = pil_image.size
+            scale = min(canvas_width / img_width, canvas_height / img_height)
+            new_width = int(img_width * scale)
+            new_height = int(img_height * scale)
+            
+            pil_image = pil_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            self._floorplan_image = ImageTk.PhotoImage(pil_image)
+            
+            return True
+        except Exception as e:
+            print(f"Failed to load floorplan image: {e}")
+            return False
+
+    def _draw_floorplan_image(self) -> None:
+        """Draw the loaded floorplan image on canvas."""
+        if self._floorplan_image and self.floor_plan_canvas:
+            x = 400  # Center of 800px canvas
+            y = 300  # Center of 600px canvas
+            self.floor_plan_canvas.create_image(
+                x, y,
+                image=self._floorplan_image,
+                anchor=tk.CENTER,
+                tags='floorplan_bg'
+            )
 
     def _draw_placeholder_floor_plan(self) -> None:
         """Draw a placeholder floor plan."""
