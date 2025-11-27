@@ -1,85 +1,157 @@
-"""CameraListPage - Camera list with floor plan"""
+"""CameraListPage - Pick a camera from list (SRS GUI)"""
+import os
 import tkinter as tk
-from tkinter import ttk, simpledialog
+from tkinter import ttk, simpledialog, messagebox
+from PIL import Image, ImageTk
 from ..components.page import Page
-from ..components.floor_plan import FloorPlan
+
+
+ASSETS_DIR = os.path.join(os.path.dirname(__file__), '..', '..', 'assets')
 
 
 class CameraListPage(Page):
-    """Camera selection page with floor plan"""
+    """Camera list page - SRS 'Pick a Camera'"""
     
     def _build_ui(self) -> None:
+        # Header
         self._create_header("Pick a Camera", back_page='surveillance')
         
+        # Main content
         content = ttk.Frame(self._frame)
-        content.pack(fill='both', expand=True, padx=20, pady=(0, 20))
+        content.pack(expand=True, fill='both', padx=20, pady=10)
+        content.columnconfigure(0, weight=2)
+        content.columnconfigure(1, weight=1)
+        content.rowconfigure(0, weight=1)
         
-        # Floor plan
-        left = ttk.LabelFrame(content, text="Floor Plan", padding=10)
-        left.pack(side='left', fill='both', expand=True, padx=(0, 10))
-        self._floor_plan = FloorPlan(left, 300, 250)
-        self._floor_plan.create_canvas().pack()
-        self._floor_plan.set_device_click_handler(self._on_camera_click)
+        # Left: Floor plan
+        left_frame = ttk.LabelFrame(content, text="Floor Plan", padding=10)
+        left_frame.grid(row=0, column=0, sticky='nsew', padx=(0, 10))
+        
+        self._canvas = tk.Canvas(left_frame, bg='white', width=400, height=400)
+        self._canvas.pack(expand=True, fill='both')
+        self._canvas.bind('<Button-1>', self._on_canvas_click)
+        self._load_floorplan()
+        
+        # Right: Camera details
+        right_frame = ttk.Frame(content)
+        right_frame.grid(row=0, column=1, sticky='nsew')
         
         # Camera list
-        right = ttk.LabelFrame(content, text="Cameras", padding=10)
-        right.pack(side='right', fill='both', expand=True, padx=(10, 0))
-        
-        list_frame = ttk.Frame(right)
+        list_frame = ttk.LabelFrame(right_frame, text="Select Camera", padding=10)
         list_frame.pack(fill='both', expand=True)
-        scrollbar = ttk.Scrollbar(list_frame)
-        scrollbar.pack(side='right', fill='y')
-        self._listbox = tk.Listbox(list_frame, yscrollcommand=scrollbar.set, height=10)
-        self._listbox.pack(side='left', fill='both', expand=True)
-        scrollbar.config(command=self._listbox.yview)
-        self._listbox.bind('<Double-Button-1>', lambda e: self._view_selected())
         
-        ttk.Button(right, text="View Camera", command=self._view_selected, 
-                  width=15).pack(pady=(10, 0))
+        self._camera_list = tk.Listbox(list_frame, font=('Arial', 11), height=12)
+        self._camera_list.pack(fill='both', expand=True, pady=(0, 10))
+        self._camera_list.bind('<<ListboxSelect>>', self._on_select)
         
-        self._cameras = []
+        # Selected camera info
+        info_frame = ttk.LabelFrame(right_frame, text="Camera Info", padding=10)
+        info_frame.pack(fill='x', pady=10)
+        
+        self._info_text = tk.Text(info_frame, height=5, width=30, state='disabled')
+        self._info_text.pack(fill='x')
+        
+        # View button
+        self._btn_view = ttk.Button(right_frame, text="View Camera", 
+                                   command=self._view_selected, width=20, state='disabled')
+        self._btn_view.pack(pady=10)
+        
+        # Camera positions for click detection
+        self._camera_positions = {}
     
-    def _load_cameras(self) -> None:
-        response = self.send_to_system('get_cameras')
-        if response.get('success'):
-            self._cameras = response.get('data', [])
-            self._listbox.delete(0, tk.END)
-            for cam in self._cameras:
-                status = "🟢" if cam.get('enabled') else "⚪"
-                lock = "🔒" if cam.get('has_password') else ""
-                self._listbox.insert(tk.END, f"{status} {cam['name']} {lock}")
+    def _load_floorplan(self) -> None:
+        try:
+            path = os.path.join(ASSETS_DIR, 'floorplan.png')
+            img = Image.open(path)
+            img = img.resize((400, 400), Image.LANCZOS)
+            self._floorplan_img = ImageTk.PhotoImage(img)
+            self._canvas.create_image(0, 0, anchor='nw', image=self._floorplan_img)
+        except Exception:
+            self._canvas.create_rectangle(10, 10, 390, 390, outline='gray')
+            self._canvas.create_text(200, 200, text="Floor Plan", fill='gray')
+    
+    def _draw_camera_icons(self, cameras) -> None:
+        """Draw camera icons on floor plan"""
+        self._canvas.delete('camera')
+        self._camera_positions = {}
+        
+        # Predefined positions (in real app, would come from config)
+        positions = {1: (100, 80), 2: (300, 150), 3: (200, 300)}
+        
+        for cam in cameras:
+            cam_id = cam['id']
+            x, y = positions.get(cam_id, (50 + cam_id * 100, 200))
             
-            camera_devices = [{'id': c['id'], 'type': 'CAMERA', 'name': c['name']} 
-                             for c in self._cameras]
-            self._floor_plan.load_devices_from_list(camera_devices)
+            color = 'green' if cam.get('enabled') else 'gray'
+            if cam.get('has_password'):
+                color = 'orange'
+            
+            self._canvas.create_oval(x-15, y-15, x+15, y+15, fill=color, tags='camera')
+            self._canvas.create_text(x, y, text=str(cam_id), fill='white', 
+                                    font=('Arial', 10, 'bold'), tags='camera')
+            self._canvas.create_text(x, y+25, text=cam['location'], 
+                                    font=('Arial', 8), tags='camera')
+            
+            self._camera_positions[cam_id] = (x, y, cam)
     
-    def _on_camera_click(self, device) -> None:
-        for i, cam in enumerate(self._cameras):
-            if cam['id'] == device.device_id:
-                self._listbox.selection_clear(0, tk.END)
-                self._listbox.selection_set(i)
-                self._listbox.see(i)
+    def _on_canvas_click(self, event) -> None:
+        for cam_id, (x, y, cam) in self._camera_positions.items():
+            if abs(event.x - x) < 20 and abs(event.y - y) < 20:
+                self._select_camera(cam)
                 break
     
+    def _on_select(self, event) -> None:
+        selection = self._camera_list.curselection()
+        if selection and hasattr(self, '_cameras'):
+            cam = self._cameras[selection[0]]
+            self._select_camera(cam)
+    
+    def _select_camera(self, cam) -> None:
+        self._selected_camera = cam
+        self._btn_view.config(state='normal')
+        
+        # Update info
+        self._info_text.config(state='normal')
+        self._info_text.delete('1.0', tk.END)
+        self._info_text.insert('1.0', 
+            f"Camera ID: {cam['id']}\n"
+            f"Location: {cam['location']}\n"
+            f"Status: {'Enabled' if cam.get('enabled') else 'Disabled'}\n"
+            f"Password: {'Yes' if cam.get('has_password') else 'No'}"
+        )
+        self._info_text.config(state='disabled')
+    
     def _view_selected(self) -> None:
-        sel = self._listbox.curselection()
-        if not sel:
-            return self._show_message("Info", "Select a camera first", 'warning')
+        if hasattr(self, '_selected_camera'):
+            cam = self._selected_camera
+            
+            # Check password
+            if cam.get('has_password'):
+                password = simpledialog.askstring("Password", 
+                    f"Enter password for Camera {cam['id']}:", show='*')
+                if not password:
+                    return
+                # In real app, would verify password
+            
+            self._web_interface.set_context('camera_id', cam['id'])
+            self.navigate_to('single_camera_view')
+    
+    def _load_cameras(self) -> None:
+        self._camera_list.delete(0, tk.END)
         
-        camera = self._cameras[sel[0]]
-        
-        if camera.get('has_password'):
-            password = simpledialog.askstring("Password Required", "Enter camera password:",
-                                             show='*', parent=self._frame.winfo_toplevel())
-            if password is None:
-                return
-            response = self.send_to_system('verify_camera_password', 
-                                          camera_id=camera['id'], password=password)
-            if not response.get('success'):
-                return self._show_message("Error", "Invalid password", 'error')
-        
-        self._web_interface.set_context('current_camera', camera)
-        self.navigate_to('single_camera_view')
+        response = self.send_to_system('get_cameras')
+        if response.get('success'):
+            cameras = response.get('data', [])
+            for cam in cameras:
+                status = "✓" if cam.get('enabled') else "✗"
+                lock = "🔒" if cam.get('has_password') else ""
+                self._camera_list.insert(tk.END, 
+                    f"{status} Camera {cam['id']}: {cam['location']} {lock}")
+            self._cameras = cameras
+            self._draw_camera_icons(cameras)
+        else:
+            self._cameras = []
     
     def on_show(self) -> None:
         self._load_cameras()
+        self._btn_view.config(state='disabled')

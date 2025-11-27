@@ -1,62 +1,60 @@
-"""ViewLogPage - Intrusion log viewer"""
+"""ViewLogPage - View intrusion logs (SRS GUI)"""
 import tkinter as tk
 from tkinter import ttk
 from ..components.page import Page
 
 
 class ViewLogPage(Page):
-    """Intrusion log viewer page"""
+    """View intrusion log - SRS 'View intrusion log'"""
     
     def _build_ui(self) -> None:
-        header = self._create_header("Intrusion Logs", back_page='security')
-        ttk.Button(header, text="Refresh", command=self._load, width=10).pack(side='right')
+        # Header
+        self._create_header("Intrusion Log", back_page='security')
         
-        # Log table
-        table_frame = ttk.Frame(self._frame)
-        table_frame.pack(fill='both', expand=True, padx=20, pady=(0, 20))
+        # Log list
+        list_frame = ttk.LabelFrame(self._frame, text="Event Log", padding=10)
+        list_frame.pack(fill='both', expand=True, padx=30, pady=20)
         
-        columns = ('datetime', 'type', 'description')
-        self._tree = ttk.Treeview(table_frame, columns=columns, show='headings', height=15)
+        # Treeview for logs
+        columns = ('timestamp', 'event', 'zone')
+        self._tree = ttk.Treeview(list_frame, columns=columns, show='headings', height=15)
         
-        self._tree.heading('datetime', text='Date/Time')
-        self._tree.heading('type', text='Type')
-        self._tree.heading('description', text='Description')
+        self._tree.heading('timestamp', text='Timestamp')
+        self._tree.heading('event', text='Event')
+        self._tree.heading('zone', text='Zone')
         
-        self._tree.column('datetime', width=150)
-        self._tree.column('type', width=100)
-        self._tree.column('description', width=350)
+        self._tree.column('timestamp', width=180)
+        self._tree.column('event', width=250)
+        self._tree.column('zone', width=150)
         
-        v_scroll = ttk.Scrollbar(table_frame, orient='vertical', command=self._tree.yview)
-        h_scroll = ttk.Scrollbar(table_frame, orient='horizontal', command=self._tree.xview)
-        self._tree.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
+        # Scrollbar
+        scrollbar = ttk.Scrollbar(list_frame, orient='vertical', command=self._tree.yview)
+        self._tree.configure(yscrollcommand=scrollbar.set)
         
-        self._tree.grid(row=0, column=0, sticky='nsew')
-        v_scroll.grid(row=0, column=1, sticky='ns')
-        h_scroll.grid(row=1, column=0, sticky='ew')
+        self._tree.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y')
         
-        table_frame.grid_rowconfigure(0, weight=1)
-        table_frame.grid_columnconfigure(0, weight=1)
+        # Refresh button
+        btn_frame = ttk.Frame(self._frame)
+        btn_frame.pack(pady=10)
         
-        self._summary = ttk.Label(self._frame, text="Total logs: -", font=('Arial', 9))
-        self._summary.pack(pady=(0, 10))
+        ttk.Button(btn_frame, text="Refresh", command=self._load_logs, width=15).pack()
     
-    def _load(self) -> None:
+    def _load_logs(self) -> None:
+        # Clear existing
         for item in self._tree.get_children():
             self._tree.delete(item)
         
-        response = self.send_to_system('get_intrusion_logs', limit=100)
-        
+        # Load from system
+        response = self.send_to_system('get_intrusion_log')
         if response.get('success'):
             logs = response.get('data', [])
             for log in logs:
-                self._tree.insert('', tk.END, values=(
-                    log.get('datetime', ''),
-                    log.get('type', ''),
-                    log.get('description', '')
+                self._tree.insert('', 'end', values=(
+                    log.get('timestamp', '-'),
+                    log.get('event', '-'),
+                    log.get('zone', '-')
                 ))
-            self._summary.config(text=f"Total logs: {len(logs)}")
-        else:
-            self._summary.config(text="Failed to load logs")
     
     def on_show(self) -> None:
-        self._load()
+        self._load_logs()
