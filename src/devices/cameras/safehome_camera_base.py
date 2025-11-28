@@ -4,7 +4,6 @@ Base utilities shared across SafeHomeCamera mixins.
 from __future__ import annotations
 
 import os
-import sys
 import threading
 from contextlib import contextmanager
 from pathlib import Path
@@ -20,9 +19,7 @@ class SafeHomeCameraBase:
     MAX_ZOOM = 9
     MIN_PAN = -5
     MAX_PAN = 5
-    _ASSET_DIR = (
-        Path(__file__).resolve().parents[2] / "resources" / "images"
-    )
+    _ASSET_DIR = Path(__file__).resolve().parents[2] / "resources" / "images"
     _DEVICE_ASSET_LOCK = threading.RLock()
 
     def __init__(self, camera_id: int, x_coord: int, y_coord: int) -> None:

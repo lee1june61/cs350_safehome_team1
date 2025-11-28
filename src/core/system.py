@@ -11,9 +11,11 @@ SRS References:
 from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
 
-from ..devices.custom_device_camera import CustomDeviceCamera
+from ..controllers.camera_controller import CameraController
+from ..devices.cameras.safehome_camera import SafeHomeCamera
 from ..devices.custom_motion_detector import CustomMotionDetector
 from ..devices.custom_window_door_sensor import CustomWinDoorSensor
+from ..utils.exceptions import CameraNotFoundError
 
 # Device data matching floorplan.png (C=Camera, S=Sensor, M=Motion)
 SENSORS = [
@@ -25,33 +27,6 @@ SENSORS = [
     {"id": "S6", "type": "WINDOW", "location": "LR Right Bottom", "armed": False},
     {"id": "M1", "type": "MOTION", "location": "DR", "armed": False},
     {"id": "M2", "type": "MOTION", "location": "Hallway", "armed": False},
-]
-
-CAMERAS = [
-    {
-        "id": "C1",
-        "location": "DR",
-        "enabled": True,
-        "password": None,
-        "pan": 0,
-        "zoom": 1,
-    },
-    {
-        "id": "C2",
-        "location": "Hallway",
-        "enabled": True,
-        "password": None,
-        "pan": 0,
-        "zoom": 1,
-    },
-    {
-        "id": "C3",
-        "location": "LR",
-        "enabled": True,
-        "password": None,
-        "pan": 0,
-        "zoom": 1,
-    },
 ]
 
 SAFETY_ZONES = [
@@ -125,27 +100,7 @@ class System:
 
             self._sensors.append(sensor_obj)
 
-        self._cameras: List[CustomDeviceCamera] = []
-        for cam_data in CAMERAS:
-            cam_id_str = cam_data.get("id", "C0")
-            try:
-                cam_id_int = int(cam_id_str[1:])
-            except (ValueError, IndexError):
-                cam_id_int = 0  # Default on parsing error
-
-            cam_obj = CustomDeviceCamera(
-                location=cam_data.get("location", "Unknown"), camera_id=cam_id_int
-            )
-            if cam_data.get("password"):
-                cam_obj.set_password(cam_data["password"])
-            if not cam_data.get("enabled", True):
-                cam_obj.disable()
-
-            # The base object initializes pan/zoom, but we can override if needed
-            # cam_obj.pan = cam_data.get('pan', 0)
-            # cam_obj.zoom = cam_data.get('zoom', 1)
-
-            self._cameras.append(cam_obj)
+        self.camera_controller = CameraController()
         self._zones = [
             {
                 "id": z["id"],
@@ -316,9 +271,12 @@ class System:
     def _cmd_arm_system(self, mode="AWAY", **kw) -> Dict:
         """Arm system with specified mode."""
         # Check for test-specific mock attribute first
-        if hasattr(self, '_doors_windows_open') and self._doors_windows_open:
-            return {"success": False, "message": "Cannot arm, a door or window is open."}
-        
+        if hasattr(self, "_doors_windows_open") and self._doors_windows_open:
+            return {
+                "success": False,
+                "message": "Cannot arm, a door or window is open.",
+            }
+
         # Check if all doors/windows are closed
         for s in self._sensors:
             if isinstance(s, CustomWinDoorSensor) and not s.can_arm():
@@ -352,7 +310,7 @@ class System:
 
     def _cmd_panic(self, **kw) -> Dict:
         """Panic button - call monitoring service immediately (SRS V.2.k)."""
-        self._state = 'ALARM'
+        self._state = "ALARM"
         self._add_log("PANIC", f"Emergency call to {self._monitor_phone}")
         return {"success": True, "message": f"Calling {self._monitor_phone}"}
 
@@ -561,43 +519,101 @@ class System:
     # ========== Cameras (SRS V.3) ==========
     def _cmd_get_cameras(self, **kw) -> Dict:
         """Get all cameras."""
-        return {"success": True, "data": [c.get_status() for c in self._cameras]}
+        return {
+            "success": True,
+            "data": self.camera_controller.get_all_camera_info(),
+        }
 
     def _cmd_get_camera(self, camera_id="", **kw) -> Dict:
         """Get specific camera."""
-        for c in self._cameras:
-            if c.get_status()["id"] == camera_id:
-                return {"success": True, "data": c.get_status()}
-        return {"success": False, "message": "Camera not found"}
+        cam_id = self._normalize_camera_id(camera_id)
+        if cam_id is None:
+            return {"success": False, "message": "Invalid camera ID"}
+        try:
+            camera = self.camera_controller.get_camera_by_id(cam_id)
+        except CameraNotFoundError:
+            return {"success": False, "message": "Camera not found"}
 
-    def _get_camera_obj_by_id(self, camera_id: str) -> Optional[CustomDeviceCamera]:
+        data = {
+            "id": camera.get_id(),
+            "location": camera.get_location(),
+            "enabled": camera.is_enabled(),
+            "pan": camera.get_pan_angle(),
+            "zoom": camera.get_zoom_level(),
+            "has_password": camera.has_password(),
+        }
+        return {"success": True, "data": data}
+
+    def _normalize_camera_id(self, camera_id: str) -> Optional[int]:
+        """Convert identifiers like 'C1' into numeric IDs."""
+        if isinstance(camera_id, int):
+            return camera_id
+        if not camera_id:
+            return None
+        normalized = str(camera_id).strip().upper()
+        if normalized.startswith("C"):
+            normalized = normalized[1:]
+        try:
+            return int(normalized)
+        except (TypeError, ValueError):
+            return None
+
+    def _get_camera_obj_by_id(self, camera_id: str) -> Optional[SafeHomeCamera]:
         """Find a camera object by its string ID (e.g., 'C1')."""
-        for c in self._cameras:
-            if c.get_status()["id"] == camera_id:
-                return c
-        return None
+        cam_id = self._normalize_camera_id(camera_id)
+        if cam_id is None:
+            return None
+        try:
+            return self.camera_controller.get_camera_by_id(cam_id)
+        except CameraNotFoundError:
+            return None
 
     def _cmd_get_camera_view(self, camera_id: str, **kw) -> Dict:
         """Get the live view (PIL Image) from a camera object."""
-        cam = self._get_camera_obj_by_id(camera_id)
-        if cam:
-            return {"success": True, "view": cam.get_view()}
-        return {"success": False, "message": "Camera not found"}
+        cam_id = self._normalize_camera_id(camera_id)
+        if cam_id is None:
+            return {"success": False, "message": "Invalid camera ID"}
+        view = self.camera_controller.display_single_view(cam_id)
+        if view is None:
+            return {"success": False, "message": "Camera not available"}
+        return {"success": True, "view": view}
 
     def _cmd_camera_pan(self, camera_id="", direction="", **kw) -> Dict:
         """Pan camera left/right (SRS V.3.b)."""
-        cam = self._get_camera_obj_by_id(camera_id)
-        if cam:
-            success = cam.pan_right() if direction == "R" else cam.pan_left()
-            return {"success": success, "pan": cam.pan}
+        cam_id = self._normalize_camera_id(camera_id)
+        if cam_id is None:
+            return {"success": False, "message": "Invalid camera ID"}
+
+        if direction.upper() == "R":
+            control = CameraController.CONTROL_PAN_RIGHT
+        else:
+            control = CameraController.CONTROL_PAN_LEFT
+
+        success = self.camera_controller.control_single_camera(cam_id, control)
+        pan_value = None
+        if success:
+            camera = self._get_camera_obj_by_id(camera_id)
+            pan_value = camera.get_pan_angle() if camera else None
+            return {"success": True, "pan": pan_value}
         return {"success": False, "message": "Camera not found"}
 
     def _cmd_camera_zoom(self, camera_id="", direction="", **kw) -> Dict:
         """Zoom camera in/out (SRS V.3.b)."""
-        cam = self._get_camera_obj_by_id(camera_id)
-        if cam:
-            success = cam.zoom_in() if direction == "in" else cam.zoom_out()
-            return {"success": success, "zoom": cam.zoom}
+        cam_id = self._normalize_camera_id(camera_id)
+        if cam_id is None:
+            return {"success": False, "message": "Invalid camera ID"}
+
+        if direction.lower() == "in":
+            control = CameraController.CONTROL_ZOOM_IN
+        else:
+            control = CameraController.CONTROL_ZOOM_OUT
+
+        success = self.camera_controller.control_single_camera(cam_id, control)
+        zoom_value = None
+        if success:
+            camera = self._get_camera_obj_by_id(camera_id)
+            zoom_value = camera.get_zoom_level() if camera else None
+            return {"success": True, "zoom": zoom_value}
         return {"success": False, "message": "Camera not found"}
 
     def _cmd_camera_tilt(self, camera_id="", direction="", **kw) -> Dict:
@@ -613,66 +629,72 @@ class System:
 
     def _cmd_enable_camera(self, camera_id="", **kw) -> Dict:
         """Enable camera (SRS V.3.f)."""
-        cam = self._get_camera_obj_by_id(camera_id)
-        if cam:
-            cam.enable()
-            return {"success": True}
-        return {"success": False, "message": "Camera not found"}
+        cam_id = self._normalize_camera_id(camera_id)
+        if cam_id is None:
+            return {"success": False, "message": "Invalid camera ID"}
+        success = self.camera_controller.enable_camera(cam_id)
+        if not success:
+            return {"success": False, "message": "Camera not found"}
+        return {"success": True}
 
     def _cmd_disable_camera(self, camera_id="", **kw) -> Dict:
         """Disable camera (SRS V.3.g)."""
-        cam = self._get_camera_obj_by_id(camera_id)
-        if cam:
-            cam.disable()
-            return {"success": True}
-        return {"success": False, "message": "Camera not found"}
+        cam_id = self._normalize_camera_id(camera_id)
+        if cam_id is None:
+            return {"success": False, "message": "Invalid camera ID"}
+        success = self.camera_controller.disable_camera(cam_id)
+        if not success:
+            return {"success": False, "message": "Camera not found"}
+        return {"success": True}
 
     def _cmd_set_camera_password(
         self, camera_id="", old_password="", password="", **kw
     ) -> Dict:
         """Set camera password (SRS V.3.c)."""
         cam = self._get_camera_obj_by_id(camera_id)
-        if cam:
-            # Verify old password if it exists
-            if cam.has_password() and not cam.verify_password(old_password):
-                return {"success": False, "message": "Old password incorrect"}
-            cam.set_password(password)
-            return {"success": True}
-        return {"success": False, "message": "Camera not found"}
+        if cam is None:
+            return {"success": False, "message": "Camera not found"}
+        if cam.has_password() and not cam.verify_password(old_password):
+            return {"success": False, "message": "Old password incorrect"}
+
+        cam_id = self._normalize_camera_id(camera_id)
+        success = self.camera_controller.set_camera_password(cam_id, password)
+        if not success:
+            return {"success": False, "message": "Unable to set password"}
+        return {"success": True}
 
     def _cmd_delete_camera_password(self, camera_id="", old_password="", **kw) -> Dict:
         """Delete camera password (SRS V.3.d)."""
         cam = self._get_camera_obj_by_id(camera_id)
-        if cam:
-            if cam.has_password() and not cam.verify_password(old_password):
-                return {"success": False, "message": "Password incorrect"}
-            cam.clear_password()
-            return {"success": True}
-        return {"success": False, "message": "Camera not found"}
+        if cam is None:
+            return {"success": False, "message": "Camera not found"}
+        if cam.has_password() and not cam.verify_password(old_password):
+            return {"success": False, "message": "Password incorrect"}
+
+        cam_id = self._normalize_camera_id(camera_id)
+        success = self.camera_controller.delete_camera_password(cam_id)
+        if not success:
+            return {"success": False, "message": "Unable to delete password"}
+        return {"success": True}
 
     def _cmd_verify_camera_password(self, camera_id="", password="", **kw) -> Dict:
         """Verify camera password (SRS V.3.a step 8)."""
-        cam = self._get_camera_obj_by_id(camera_id)
-        if cam:
-            if cam.verify_password(password):
-                return {"success": True, "has_password": cam.has_password()}
-            else:
-                return {"success": False, "message": "Wrong password"}
-        return {"success": False, "message": "Camera not found"}
+        cam_id = self._normalize_camera_id(camera_id)
+        if cam_id is None:
+            return {"success": False, "message": "Invalid camera ID"}
+        is_valid = self.camera_controller.validate_camera_password(cam_id, password)
+        if is_valid:
+            camera = self._get_camera_obj_by_id(camera_id)
+            has_password = camera.has_password() if camera else False
+            return {"success": True, "has_password": has_password}
+        return {"success": False, "message": "Wrong password"}
 
     def _cmd_get_thumbnails(self, **kw) -> Dict:
         """Get thumbnail data for all enabled cameras (SRS V.3.e).
         Includes cameras with passwords but marks them as locked."""
         thumbnails = {}
-        for c in self._cameras:
-            if c.is_enabled():
-                status = c.get_status()
-                # Mark cameras with password as locked
-                if c.has_password():
-                    status["locked"] = True
-                else:
-                    status["locked"] = False
-                thumbnails[status["id"]] = status
+        for cam_id, view in self.camera_controller.display_thumbnail_view():
+            thumbnails[f"C{cam_id}"] = view
         return {"success": True, "data": thumbnails}
 
     # ========== System Settings (SRS V.1.c) ==========

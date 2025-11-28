@@ -33,3 +33,16 @@ class DeviceCameraPTZMixin(DeviceCameraBase):
             return True
         return False
 
+    # InterfaceCamera operations ----------------------------------------------------
+    def pan_left(self) -> bool:
+        return self.set_pan(self._pan - 1)
+
+    def pan_right(self) -> bool:
+        return self.set_pan(self._pan + 1)
+
+    def zoom_in(self) -> bool:
+        return self.set_zoom(self._zoom + 1)
+
+    def zoom_out(self) -> bool:
+        return self.set_zoom(self._zoom - 1)
+

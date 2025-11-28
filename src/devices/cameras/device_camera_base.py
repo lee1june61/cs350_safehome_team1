@@ -43,6 +43,15 @@ class DeviceCameraBase(InterfaceCamera):
     def get_camera_id(self) -> int:
         return self._camera_id
 
+    # InterfaceCamera compatibility -------------------------------------------------
+    def set_id(self, camera_id: int) -> None:
+        """Update the underlying identifier (SDS alias)."""
+        self._camera_id = camera_id
+
+    def get_id(self) -> int:
+        """Alias required by InterfaceCamera."""
+        return self._camera_id
+
     def enable(self):
         self._enabled = True
 

@@ -1,22 +1,19 @@
 """
 SafeHome Devices Package
 
-This package contains custom device implementations that extend the base
-virtual devices.
+Only the camera-related APIs are imported eagerly here to avoid pulling in
+sensor modules (which may not be needed for every test suite).
 """
 
-# Import interfaces
 from .interfaces import InterfaceCamera, InterfaceSensor
-
-# Import device implementations
 from .cameras.device_camera import DeviceCamera
-from .sensors import DeviceMotionDetector, DeviceWinDoorSensor
-from .control_panel_abstract import DeviceControlPanelAbstract
-
+from .cameras.safehome_camera import SafeHomeCamera
+from .custom_device_camera import CustomDeviceCamera
 
 __all__ = [
+    "InterfaceCamera",
+    "InterfaceSensor",
+    "DeviceCamera",
+    "SafeHomeCamera",
     "CustomDeviceCamera",
-    "CustomMotionDetector",
-    "CustomWinDoorSensor",
-    "DeviceControlPanelAbstract",
 ]
