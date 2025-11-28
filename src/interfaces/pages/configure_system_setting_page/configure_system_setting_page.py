@@ -73,3 +73,4 @@ class ConfigureSystemSettingPage(Page):
             self._monitor_phone.set(data.get('monitor_phone', ''))
         self._clear_password_fields()
         self._status.config(text="")
+
