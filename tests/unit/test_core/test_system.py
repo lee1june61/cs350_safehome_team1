@@ -5,12 +5,12 @@ Unit tests for System class
 
 import pytest
 from unittest.mock import Mock, MagicMock, patch
-from system import System
-from sensor_controller import SensorController
-from safehome.src.controllers.camera_controller import CameraController
-from login_manager import LoginManager
-from configuration_manager import ConfigurationManager
-from alarm import Alarm
+from src.core.system import System
+from src.devices.sensors.sensor_controller import SensorController
+from src.controllers.camera_controller import CameraController
+from src.configuration.login_manager import LoginManager
+from src.configuration.configuration_manager import ConfigurationManager
+from src.core.alarm import Alarm
 
 
 class TestSystem:
