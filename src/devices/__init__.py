@@ -1,6 +1,8 @@
 """
-SafeHome Devices Module.
-Contains all device implementations and interfaces.
+SafeHome Devices Package
+
+This package contains custom device implementations that extend the base
+virtual devices.
 """
 
 # Import interfaces
@@ -14,15 +16,8 @@ from .control_panel_abstract import DeviceControlPanelAbstract
 
 
 __all__ = [
-    # Interfaces
-    'InterfaceCamera',
-    'InterfaceSensor',
-    'DeviceControlPanelAbstract',
-    
-    # Implementations
-    'DeviceCamera',
-    'DeviceMotionDetector',
-    'DeviceWinDoorSensor',
+    "CustomDeviceCamera",
+    "CustomMotionDetector",
+    "CustomWinDoorSensor",
+    "DeviceControlPanelAbstract",
 ]
-
-__version__ = '1.0.0'

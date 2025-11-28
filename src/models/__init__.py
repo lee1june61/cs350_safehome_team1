@@ -8,3 +8,4 @@ from ..devices.cameras.safehome_camera import SafeHomeCamera
 __all__ = ['SafeHomeCamera']
 # models package
 
+

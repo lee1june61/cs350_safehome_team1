@@ -1,52 +1,45 @@
 """
-Device interfaces for SafeHome system.
-Base abstract interfaces that all devices must implement.
+Device Interfaces - Abstract interfaces from TA (virtual_device_v4)
 """
 from abc import ABC, abstractmethod
-from typing import Optional
 
 
 class InterfaceCamera(ABC):
     """Abstract interface for camera devices."""
     
     @abstractmethod
-    def get_location(self) -> str:
-        """Get camera location identifier."""
+    def set_id(self, id_: int):
+        """Set the camera ID and load associated image."""
         pass
     
     @abstractmethod
-    def get_pan(self) -> int:
-        """Get current pan angle (-180 to 180 degrees)."""
+    def get_id(self) -> int:
+        """Get the camera ID."""
         pass
     
     @abstractmethod
-    def get_tilt(self) -> int:
-        """Get current tilt angle (-90 to 90 degrees)."""
+    def get_view(self):
+        """Get the current camera view as an image (PIL Image)."""
         pass
     
     @abstractmethod
-    def get_zoom(self) -> int:
-        """Get current zoom level (0-100)."""
+    def pan_right(self) -> bool:
+        """Pan camera to the right. Returns True if successful."""
         pass
     
     @abstractmethod
-    def set_pan(self, angle: int) -> bool:
-        """Set pan angle. Returns True if successful."""
+    def pan_left(self) -> bool:
+        """Pan camera to the left. Returns True if successful."""
         pass
     
     @abstractmethod
-    def set_tilt(self, angle: int) -> bool:
-        """Set tilt angle. Returns True if successful."""
+    def zoom_in(self) -> bool:
+        """Zoom in. Returns True if successful."""
         pass
     
     @abstractmethod
-    def set_zoom(self, level: int) -> bool:
-        """Set zoom level. Returns True if successful."""
-        pass
-    
-    @abstractmethod
-    def capture_frame(self) -> Optional[bytes]:
-        """Capture current frame. Returns image data or None."""
+    def zoom_out(self) -> bool:
+        """Zoom out. Returns True if successful."""
         pass
 
 
@@ -54,36 +47,26 @@ class InterfaceSensor(ABC):
     """Abstract interface for sensor devices."""
     
     @abstractmethod
-    def get_location(self) -> str:
-        """Get sensor location identifier."""
+    def get_id(self) -> int:
+        """Get sensor ID."""
         pass
     
     @abstractmethod
-    def get_type(self) -> str:
-        """Get sensor type (motion, door, window)."""
+    def read(self) -> bool:
+        """Read sensor state. Returns True if triggered."""
         pass
     
     @abstractmethod
-    def is_triggered(self) -> bool:
-        """Check if sensor is currently triggered."""
+    def arm(self):
+        """Arm (enable) the sensor."""
         pass
     
     @abstractmethod
-    def arm(self) -> bool:
-        """Arm the sensor. Returns True if successful."""
+    def disarm(self):
+        """Disarm (disable) the sensor."""
         pass
     
     @abstractmethod
-    def disarm(self) -> bool:
-        """Disarm the sensor. Returns True if successful."""
-        pass
-    
-    @abstractmethod
-    def is_armed(self) -> bool:
-        """Check if sensor is armed."""
-        pass
-    
-    @abstractmethod
-    def get_battery_level(self) -> int:
-        """Get battery level (0-100%)."""
+    def test_armed_state(self) -> bool:
+        """Test if sensor is armed."""
         pass

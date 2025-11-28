@@ -95,3 +95,14 @@ desktop.ini
 examples/*.pyc
 examples/__pycache__/
 
+# Onejune's files
+TESTING_GUIDE.md
+
+# Minjun's files
+CONFIGURATION_MODULE_SUMMARY.md
+run_config_tests.sh
+
+# Jehyung's files
+test_cameras'py
+
+dump/
