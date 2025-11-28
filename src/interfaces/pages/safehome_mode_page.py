@@ -1,101 +1,67 @@
-"""SafeHomeModePage - Security mode selection (SRS GUI)"""
+"""SafeHomeModePage - Mode selection (SRS V.2.b Step 5-8)"""
 import tkinter as tk
 from tkinter import ttk, messagebox
 from ..components.page import Page
 
 
 class SafeHomeModePage(Page):
-    """SafeHome Mode page - SRS Section II 'Security Function - Security Mode'"""
+    """Set SafeHome mode: HOME, AWAY, OVERNIGHT, EXTENDED."""
     
     MODES = [
-        ('HOME', 'Home - Partial security while at home'),
-        ('AWAY', 'Away - Full security when leaving'),
-        ('OVERNIGHT', 'Overnight Travel - Extended away mode'),
-        ('EXTENDED', 'Extended Travel - Long-term away mode'),
+        ('HOME', 'Partial security while at home'),
+        ('AWAY', 'Full security when leaving'),
+        ('OVERNIGHT', 'Overnight travel mode'),
+        ('EXTENDED', 'Extended travel mode'),
     ]
     
-    def _build_ui(self) -> None:
-        # Header
+    def _build_ui(self):
         self._create_header("Set SafeHome Mode", back_page='security')
         
-        # Current status
-        status_frame = ttk.LabelFrame(self._frame, text="Current Status", padding=15)
-        status_frame.pack(fill='x', padx=30, pady=15)
+        sf = ttk.LabelFrame(self._frame, text="Current Status", padding=10)
+        sf.pack(fill='x', padx=30, pady=10)
+        self._status = ttk.Label(sf, text="", font=('Arial', 12))
+        self._status.pack()
         
-        self._status_label = ttk.Label(status_frame, text="Loading...", font=('Arial', 14))
-        self._status_label.pack()
+        mf = ttk.LabelFrame(self._frame, text="Select Mode", padding=15)
+        mf.pack(fill='both', expand=True, padx=30, pady=10)
         
-        # Mode selection
-        mode_frame = ttk.LabelFrame(self._frame, text="Select Security Mode", padding=20)
-        mode_frame.pack(fill='both', expand=True, padx=30, pady=10)
+        self._mode = tk.StringVar()
+        for m, desc in self.MODES:
+            f = ttk.Frame(mf)
+            f.pack(fill='x', pady=5)
+            ttk.Radiobutton(f, text=m, variable=self._mode, value=m).pack(side='left')
+            ttk.Label(f, text=f" - {desc}", foreground='gray').pack(side='left')
         
-        self._mode_var = tk.StringVar(value='')
+        qf = ttk.Frame(mf)
+        qf.pack(pady=15)
+        ttk.Button(qf, text="Arm All", command=self._arm_all, width=12).pack(side='left', padx=5)
+        ttk.Button(qf, text="Disarm All", command=self._disarm_all, width=12).pack(side='left', padx=5)
         
-        for mode, description in self.MODES:
-            frame = ttk.Frame(mode_frame)
-            frame.pack(fill='x', pady=8)
-            
-            rb = ttk.Radiobutton(frame, text=mode, variable=self._mode_var, 
-                                value=mode, style='TRadiobutton')
-            rb.pack(side='left')
-            
-            ttk.Label(frame, text=f"  - {description}", foreground='gray').pack(side='left')
-        
-        # Quick actions
-        quick_frame = ttk.Frame(mode_frame)
-        quick_frame.pack(fill='x', pady=20)
-        
-        ttk.Button(quick_frame, text="Arm All", command=self._arm_all, 
-                  width=15).pack(side='left', padx=10)
-        ttk.Button(quick_frame, text="Disarm All", command=self._disarm_all,
-                  width=15).pack(side='left', padx=10)
-        
-        # Apply button
-        btn_frame = ttk.Frame(self._frame)
-        btn_frame.pack(fill='x', padx=30, pady=20)
-        
-        ttk.Button(btn_frame, text="Apply Mode", command=self._apply_mode,
-                  width=20).pack(pady=10)
+        ttk.Button(self._frame, text="Apply Mode", command=self._apply, width=15).pack(pady=15)
     
-    def _update_status(self) -> None:
-        response = self.send_to_system('get_status')
-        if response.get('success'):
-            data = response.get('data', {})
-            armed = data.get('armed', False)
-            mode = data.get('mode', 'DISARMED')
-            
-            if armed:
-                self._status_label.config(text=f"● System ARMED - Mode: {mode}", 
-                                         foreground='red')
-                self._mode_var.set(mode)
+    def _update(self):
+        res = self.send_to_system('get_status')
+        if res.get('success'):
+            d = res.get('data', {})
+            if d.get('armed'):
+                self._status.config(text=f"● ARMED - {d.get('mode')}", foreground='red')
+                self._mode.set(d.get('mode', ''))
             else:
-                self._status_label.config(text="● System DISARMED", foreground='green')
-                self._mode_var.set('')
+                self._status.config(text="● DISARMED", foreground='green')
     
-    def _apply_mode(self) -> None:
-        mode = self._mode_var.get()
-        if not mode:
-            messagebox.showwarning("Warning", "Please select a mode")
-            return
-        
-        response = self.send_to_system('arm_system', mode=mode)
-        if response.get('success'):
-            messagebox.showinfo("Success", f"System armed in {mode} mode")
-            self._update_status()
-        else:
-            messagebox.showerror("Error", response.get('message', 'Failed to arm system'))
+    def _apply(self):
+        m = self._mode.get()
+        if not m: messagebox.showwarning("", "Select a mode"); return
+        res = self.send_to_system('arm_system', mode=m)
+        if res.get('success'): messagebox.showinfo("", f"Armed: {m}")
+        self._update()
     
-    def _arm_all(self) -> None:
-        response = self.send_to_system('arm_system', mode='AWAY')
-        if response.get('success'):
-            messagebox.showinfo("Success", "System fully armed")
-            self._update_status()
+    def _arm_all(self):
+        self.send_to_system('arm_system', mode='AWAY')
+        self._update()
     
-    def _disarm_all(self) -> None:
-        response = self.send_to_system('disarm_system')
-        if response.get('success'):
-            messagebox.showinfo("Success", "System disarmed")
-            self._update_status()
+    def _disarm_all(self):
+        self.send_to_system('disarm_system')
+        self._update()
     
-    def on_show(self) -> None:
-        self._update_status()
+    def on_show(self): self._update()
