@@ -54,7 +54,7 @@ pip install -r requirements.txt
 
 ### Control Panel 실행 (로컬)
 ```bash
-python -m src.interfaces.control_panel.main
+python main.py
 # 또는
 python scripts/run_control_panel.py
 ```

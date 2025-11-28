@@ -29,6 +29,10 @@ class CameraLockManager:
                 "Please wait 60 seconds.")
             return True
         return False
+    
+    def is_locked_silent(self) -> bool:
+        """Check if locked without showing messagebox (for UI updates)."""
+        return self._locked.get(self._cam_id, False)
 
     def init_attempts(self):
         if self._cam_id not in self._attempts:

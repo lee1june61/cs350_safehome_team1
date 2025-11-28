@@ -26,6 +26,7 @@ class SafeHomeCameraBase:
         self.camera_id: int = camera_id
         self.location: List[int] = [x_coord, y_coord]
         self.pan_angle: int = 0
+        self.tilt_angle: int = 0
         self.zoom_level: int = 2
         self.password: Optional[str] = None
         self.enabled: bool = False

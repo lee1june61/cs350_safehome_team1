@@ -28,6 +28,7 @@ class CustomDeviceCamera(BaseDeviceCamera):
         self.camera_id = camera_id
         self.time = 0
         self.pan = 0
+        self.tilt = 0
         self.zoom = 2
         self.img_source = None
         self.center_width = 0
@@ -175,3 +176,19 @@ class CustomDeviceCamera(BaseDeviceCamera):
         if self._password is None:
             return True
         return self._password == password
+
+    def tilt_up(self) -> bool:
+        """Tilt camera up."""
+        with self._lock:
+            if not self._enabled or self.tilt >= 5:
+                return False
+            self.tilt += 1
+            return True
+
+    def tilt_down(self) -> bool:
+        """Tilt camera down."""
+        with self._lock:
+            if not self._enabled or self.tilt <= -5:
+                return False
+            self.tilt -= 1
+            return True

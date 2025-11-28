@@ -1,4 +1,5 @@
 """DeviceIcon - Visual representation of devices on floor plan."""
+
 from typing import Optional, Callable
 from .device_position import DevicePosition
 from .device_constants import DEVICE_COLORS, DEVICE_SYMBOLS, TRIGGERED_COLOR
@@ -7,8 +8,13 @@ from .device_constants import DEVICE_COLORS, DEVICE_SYMBOLS, TRIGGERED_COLOR
 class DeviceIcon:
     """Visual representation of a device on floor plan."""
 
-    def __init__(self, device_id: str, device_type: str,
-                 device_name: str, position: DevicePosition):
+    def __init__(
+        self,
+        device_id: str,
+        device_type: str,
+        device_name: str,
+        position: DevicePosition,
+    ):
         self._id = device_id
         self._type = device_type.upper()
         self._name = device_name

@@ -4,6 +4,7 @@ LoginManager - A helper class to manage login logic for the LoginPage.
 import tkinter as tk
 from tkinter import ttk
 from typing import Callable
+import time
 
 class LoginManager:
     def __init__(self, page, user_var: tk.StringVar, pw1_var: tk.StringVar, pw2_var: tk.StringVar,
@@ -17,6 +18,8 @@ class LoginManager:
         
         self._attempts = 3
         self._locked = False
+        self._lock_start_time = None
+        self._countdown_job = None
     
     def login(self):
         if self._locked:
@@ -37,19 +40,49 @@ class LoginManager:
         else:
             self._attempts -= 1
             if self._attempts <= 0:
-                self._locked = True
-                self._login_btn.config(state='disabled')
-                self._status_msg.config(text="LOCKED - wait 60s")
-                self.page._frame.after(60000, self._unlock)
+                self._lock()
             else:
                 self._status_msg.config(text=f"Failed. {self._attempts} left")
     
+    def _lock(self):
+        """Lock the login and start countdown."""
+        self._locked = True
+        self._lock_start_time = time.time()
+        self._login_btn.config(state='disabled')
+        self._update_countdown()
+    
+    def _update_countdown(self):
+        """Update the countdown display every second."""
+        if not self._locked or self._lock_start_time is None:
+            return
+        
+        elapsed = time.time() - self._lock_start_time
+        remaining = max(0, int(60 - elapsed))
+        
+        if remaining > 0:
+            self._status_msg.config(text=f"LOCKED - {remaining} seconds remaining")
+            self._countdown_job = self.page._frame.after(1000, self._update_countdown)
+        else:
+            self._unlock()
+    
     def _unlock(self):
-        self._locked, self._attempts = False, 3
+        """Unlock the login."""
+        if self._countdown_job:
+            self.page._frame.after_cancel(self._countdown_job)
+            self._countdown_job = None
+        self._locked = False
+        self._attempts = 3
+        self._lock_start_time = None
         self._login_btn.config(state='normal')
         self._status_msg.config(text="Unlocked")
     
     def on_show(self):
-        self._attempts, self._locked = 3, False
+        """Reset login state when page is shown."""
+        if self._countdown_job:
+            self.page._frame.after_cancel(self._countdown_job)
+            self._countdown_job = None
+        self._attempts = 3
+        self._locked = False
+        self._lock_start_time = None
         self._login_btn.config(state='normal')
         self._status_msg.config(text="")

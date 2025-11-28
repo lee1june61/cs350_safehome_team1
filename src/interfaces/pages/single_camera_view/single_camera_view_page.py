@@ -3,6 +3,7 @@ from ...components.page import Page
 from .ui_builder import SingleCameraViewUIBuilder
 from .password_manager import CameraPasswordManager
 from .video_feed import VideoFeedManager
+from .lock_manager import CameraLockManager
 
 
 class SingleCameraViewPage(Page):
@@ -17,6 +18,7 @@ class SingleCameraViewPage(Page):
         self._btn_en = None
         self._btn_dis = None
         self._pw_manager = CameraPasswordManager(self)
+        self._lock_manager = CameraLockManager(self)
         self._video_feed = VideoFeedManager(self)
 
     def _build_ui(self):
@@ -29,6 +31,10 @@ class SingleCameraViewPage(Page):
 
     def _zoom(self, direction: str):
         self.send_to_system("camera_zoom", camera_id=self._cam_id, direction=direction)
+        self._update_info()
+
+    def _tilt(self, direction: str):
+        self.send_to_system("camera_tilt", camera_id=self._cam_id, direction=direction)
         self._update_info()
 
     def _enable(self):
@@ -50,7 +56,7 @@ class SingleCameraViewPage(Page):
         text = (
             f"ID: {c.get('id')}\n"
             f"Loc: {c.get('location')}\n"
-            f"Pan: {c.get('pan', 0)} Zoom: {c.get('zoom', 1)}x\n"
+            f"Pan: {c.get('pan', 0)} Tilt: {c.get('tilt', 0)} Zoom: {c.get('zoom', 1)}x\n"
             f"Status: {'On' if en else 'Off'}\n"
             f"Password: {pw}"
         )

@@ -29,11 +29,11 @@ def draw_devices(
     handle_click: callable
 ):
     """Draw device icons at calculated positions."""
-    colors = {'camera': '#9b59b6', 'sensor': '#e74c3c', 'motion': '#3498db'}
+    colors = {'camera': '#9b59b6', 'sensor': '#e74c3c', 'motion': '#3498db', 'door_sensor': '#3498db'}
     
     for dev_id, (nx, ny, dtype) in DEVICES.items():
         if (dtype == 'camera' and not show_cameras) or \
-           (dtype in ('sensor', 'motion') and not show_sensors):
+           (dtype in ('sensor', 'motion', 'door_sensor') and not show_sensors):
             continue
         
         x, y, r = int(nx * width), int(ny * height), 10
