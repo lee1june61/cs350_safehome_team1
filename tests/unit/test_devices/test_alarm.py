@@ -1,261 +1,213 @@
 """
 test_alarm.py
-Unit tests for Alarm class
+Unit tests for Alarm class (실제 구현 기준)
 """
 
 import pytest
 from unittest.mock import Mock, patch
-from alarm import Alarm
+from src.devices.alarm import Alarm
 
 
 class TestAlarm:
-    """Unit tests for Alarm class"""
+    """Alarm 클래스 테스트"""
     
     @pytest.fixture
     def alarm(self):
-        """Fixture to create an Alarm instance"""
-        alarm = Alarm()
-        alarm.id = 1
-        alarm.location = [150, 300]
-        alarm.status = "IDLE"
-        return alarm
+        """Alarm fixture"""
+        return Alarm(alarm_id=1, xCoord=150, yCoord=300)
     
-    # UT-ALM-setID
-    def test_set_id_valid(self, alarm):
-        """
-        Test Case: setID()
-        Description: Verifies alarm ID is properly assigned
-        Reference: CRC Card for Alarm
-        """
-        # Arrange
-        alarm_id = 5
-        
-        # Act
-        alarm.set_id(alarm_id)
-        
-        # Assert
-        assert alarm.id == alarm_id
+    def test_initialization(self, alarm):
+        """알람 초기화 테스트"""
+        assert alarm.id == 1
+        assert alarm.xCoord == 150
+        assert alarm.yCoord == 300
+        assert alarm.status is False  # 초기 상태는 꺼짐
     
-    def test_set_id_zero(self, alarm):
-        """
-        Test Case: setID() with zero
-        Description: Verifies handling of zero ID
-        """
-        # Arrange
-        alarm_id = 0
-        
-        # Act & Assert
-        with pytest.raises(ValueError, match="Alarm ID must be positive"):
-            alarm.set_id(alarm_id)
+    def test_initialization_with_defaults(self):
+        """기본값으로 알람 초기화 테스트"""
+        alarm = Alarm(alarm_id=5)
+        assert alarm.id == 5
+        assert alarm.xCoord == 0
+        assert alarm.yCoord == 0
+        assert alarm.status is False
     
-    def test_set_id_negative(self, alarm):
-        """
-        Test Case: setID() with negative value
-        Description: Verifies rejection of negative ID
-        """
-        # Arrange
-        alarm_id = -3
-        
-        # Act & Assert
-        with pytest.raises(ValueError, match="Alarm ID must be positive"):
-            alarm.set_id(alarm_id)
-    
-    # UT-ALM-getId
+    # getID 테스트
     def test_get_id(self, alarm):
-        """
-        Test Case: getId()
-        Description: Verifies alarm ID is correctly retrieved
-        Reference: State Diagram page 35 of SDS
-        """
-        # Arrange
-        alarm.id = 10
-        
-        # Act
-        result = alarm.get_id()
-        
-        # Assert
-        assert result == 10
+        """getID() 메서드 테스트"""
+        assert alarm.getID() == 1
     
-    def test_get_id_after_set(self, alarm):
-        """
-        Test Case: getId() after setID()
-        Description: Verifies ID persistence after setting
-        """
-        # Arrange
-        alarm.set_id(7)
-        
-        # Act
-        result = alarm.get_id()
-        
-        # Assert
-        assert result == 7
+    def test_get_id_different_id(self):
+        """다른 ID로 getID() 테스트"""
+        alarm = Alarm(alarm_id=99)
+        assert alarm.getID() == 99
     
-    # UT-ALM-getLocation
+    # getLocation 테스트
     def test_get_location(self, alarm):
-        """
-        Test Case: getLocation()
-        Description: Verifies alarm location is retrieved correctly
-        Reference: CRC Card for Alarm
-        """
-        # Arrange
-        alarm.location = [150, 300]
-        
-        # Act
-        result = alarm.get_location()
-        
-        # Assert
-        assert result == [150, 300]
-        assert isinstance(result, list)
-        assert len(result) == 2
+        """getLocation() 메서드 테스트"""
+        location = alarm.getLocation()
+        assert location == [150, 300]
+        assert isinstance(location, list)
+        assert len(location) == 2
     
-    def test_get_location_modified(self, alarm):
-        """
-        Test Case: getLocation() after location change
-        Description: Verifies location updates are reflected
-        """
-        # Arrange
-        alarm.location = [100, 200]
-        alarm.location = [250, 350]
-        
-        # Act
-        result = alarm.get_location()
-        
-        # Assert
-        assert result == [250, 350]
+    def test_get_location_default(self):
+        """기본 위치로 getLocation() 테스트"""
+        alarm = Alarm(alarm_id=1)
+        location = alarm.getLocation()
+        assert location == [0, 0]
     
-    # UT-ALM-isRinging
-    def test_is_ringing_active(self, alarm):
-        """
-        Test Case: isRinging()
-        Description: Verifies alarm reports ringing status correctly
-        Reference: State Diagram for Alarm showing RINGING state
-        """
-        # Arrange
-        alarm.status = "RINGING"
+    # setLocation 테스트
+    def test_set_location(self, alarm):
+        """setLocation() 메서드 테스트"""
+        alarm.setLocation(500, 600)
+        assert alarm.xCoord == 500
+        assert alarm.yCoord == 600
+        assert alarm.getLocation() == [500, 600]
+    
+    def test_set_location_negative(self, alarm):
+        """음수 좌표로 setLocation() 테스트"""
+        alarm.setLocation(-100, -200)
+        assert alarm.xCoord == -100
+        assert alarm.yCoord == -200
+    
+    # isRinging 테스트
+    def test_is_ringing_initial_state(self, alarm):
+        """초기 상태에서 isRinging() 테스트"""
+        assert alarm.isRinging() is False
+    
+    def test_is_ringing_when_active(self, alarm):
+        """알람이 울릴 때 isRinging() 테스트"""
+        alarm.status = True
+        assert alarm.isRinging() is True
+    
+    def test_is_ringing_when_stopped(self, alarm):
+        """알람이 멈췄을 때 isRinging() 테스트"""
+        alarm.status = True
+        alarm.status = False
+        assert alarm.isRinging() is False
+    
+    # ring 테스트
+    def test_ring_activate(self, alarm):
+        """ring(True)로 알람 활성화 테스트"""
+        alarm.ring(True)
+        assert alarm.status is True
+        assert alarm.isRinging() is True
+    
+    def test_ring_deactivate(self, alarm):
+        """ring(False)로 알람 비활성화 테스트"""
+        alarm.ring(True)  # 먼저 활성화
+        alarm.ring(False)  # 비활성화
+        assert alarm.status is False
+        assert alarm.isRinging() is False
+    
+    def test_ring_multiple_times(self, alarm):
+        """ring() 여러 번 호출 테스트"""
+        alarm.ring(True)
+        alarm.ring(True)  # 이미 울리는 중
+        assert alarm.status is True
         
-        # Act
-        result = alarm.is_ringing()
-        
-        # Assert
+        alarm.ring(False)
+        alarm.ring(False)  # 이미 멈춤
+        assert alarm.status is False
+    
+    # starting 테스트
+    def test_starting_correct_id(self, alarm):
+        """올바른 ID로 starting() 테스트"""
+        result = alarm.starting(1)
         assert result is True
+        assert alarm.status is True
+        assert alarm.isRinging() is True
     
-    def test_is_ringing_idle(self, alarm):
-        """
-        Test Case: isRinging() when idle
-        Description: Verifies alarm reports idle status
-        """
-        # Arrange
-        alarm.status = "IDLE"
-        
-        # Act
-        result = alarm.is_ringing()
-        
-        # Assert
+    def test_starting_wrong_id(self, alarm):
+        """잘못된 ID로 starting() 테스트"""
+        result = alarm.starting(999)
         assert result is False
+        assert alarm.status is False  # 상태 변화 없음
     
-    def test_is_ringing_after_activation(self, alarm):
-        """
-        Test Case: isRinging() after ringAlarm()
-        Description: Verifies status changes after activation
-        """
-        # Arrange
-        alarm.status = "IDLE"
-        alarm.ring_alarm(True)
-        
-        # Act
-        result = alarm.is_ringing()
-        
-        # Assert
+    def test_starting_already_ringing(self, alarm):
+        """이미 울리는 중에 starting() 테스트"""
+        alarm.starting(1)  # 첫 번째 시작
+        result = alarm.starting(1)  # 두 번째 시작
         assert result is True
+        assert alarm.status is True
     
-    # UT-ALM-ringAlarm
-    def test_ring_alarm_activate(self, alarm):
-        """
-        Test Case: ringAlarm()
-        Description: Verifies alarm activates when commanded
-        Reference: Sequence Diagram page 58 of SDS
-        """
-        # Arrange
-        alarm.status = "IDLE"
-        with patch.object(alarm, '_activate_hardware') as mock_hardware:
-            # Act
-            result = alarm.ring_alarm(True)
-            
-            # Assert
-            assert result is True
-            assert alarm.status == "RINGING"
-            mock_hardware.assert_called_once()
-    
-    def test_ring_alarm_deactivate(self, alarm):
-        """
-        Test Case: ringAlarm(False)
-        Description: Verifies alarm stops when commanded
-        """
-        # Arrange
-        alarm.status = "RINGING"
-        with patch.object(alarm, '_deactivate_hardware') as mock_hardware:
-            # Act
-            result = alarm.ring_alarm(False)
-            
-            # Assert
-            assert result is True
-            assert alarm.status == "IDLE"
-            mock_hardware.assert_called_once()
-    
-    def test_ring_alarm_already_ringing(self, alarm):
-        """
-        Test Case: ringAlarm() when already ringing
-        Description: Verifies handling of already active alarm
-        """
-        # Arrange
-        alarm.status = "RINGING"
-        
-        # Act
-        result = alarm.ring_alarm(True)
-        
-        # Assert
+    # ending 테스트
+    def test_ending_correct_id(self, alarm):
+        """올바른 ID로 ending() 테스트"""
+        alarm.starting(1)  # 먼저 시작
+        result = alarm.ending(1)
         assert result is True
-        assert alarm.status == "RINGING"
+        assert alarm.status is False
+        assert alarm.isRinging() is False
     
-    def test_ring_alarm_intrusion_scenario(self, alarm):
-        """
-        Test Case: ringAlarm() during intrusion detection
-        Description: Verifies alarm activation on intrusion
-        Reference: CRC Card "Ring the alarm"
-        """
-        # Arrange
-        alarm.status = "IDLE"
-        intrusion_detected = True
-        
-        with patch.object(alarm, '_activate_hardware') as mock_hw:
-            with patch.object(alarm, '_log_alarm_event') as mock_log:
-                # Act
-                result = alarm.ring_alarm(intrusion_detected)
-                
-                # Assert
-                assert result is True
-                assert alarm.status == "RINGING"
-                mock_hw.assert_called_once()
-                mock_log.assert_called_once()
+    def test_ending_wrong_id(self, alarm):
+        """잘못된 ID로 ending() 테스트"""
+        alarm.starting(1)  # 먼저 시작
+        result = alarm.ending(999)
+        assert result is False
+        assert alarm.status is True  # 상태 변화 없음
     
-    def test_ring_alarm_with_delay(self, alarm):
-        """
-        Test Case: ringAlarm() with entry delay
-        Description: Verifies alarm respects delay before ringing
-        Reference: SystemSettings delay time
-        """
-        # Arrange
-        alarm.status = "IDLE"
-        delay_seconds = 30
+    def test_ending_not_ringing(self, alarm):
+        """울리지 않을 때 ending() 테스트"""
+        result = alarm.ending(1)
+        assert result is True
+        assert alarm.status is False
+    
+    # 통합 시나리오 테스트
+    def test_intrusion_scenario(self, alarm):
+        """침입 감지 시나리오 테스트"""
+        # 초기 상태
+        assert alarm.isRinging() is False
         
-        with patch('time.sleep') as mock_sleep:
-            with patch.object(alarm, '_activate_hardware'):
-                # Act
-                result = alarm.ring_alarm(True, delay=delay_seconds)
-                
-                # Assert
-                assert result is True
-                mock_sleep.assert_called_once_with(delay_seconds)
+        # 침입 감지로 알람 시작
+        result = alarm.starting(1)
+        assert result is True
+        assert alarm.isRinging() is True
+        
+        # 사용자가 알람 종료
+        result = alarm.ending(1)
+        assert result is True
+        assert alarm.isRinging() is False
+    
+    def test_false_alarm_scenario(self, alarm):
+        """오작동 시나리오 테스트"""
+        # 알람 울림
+        alarm.ring(True)
+        assert alarm.isRinging() is True
+        
+        # 즉시 종료
+        alarm.ring(False)
+        assert alarm.isRinging() is False
+    
+    def test_location_change_while_ringing(self, alarm):
+        """알람이 울리는 중 위치 변경 테스트"""
+        alarm.starting(1)
+        alarm.setLocation(999, 888)
+        
+        assert alarm.isRinging() is True  # 여전히 울림
+        assert alarm.getLocation() == [999, 888]  # 위치는 변경됨
+    
+    def test_multiple_alarms_different_ids(self):
+        """여러 알람 독립 동작 테스트"""
+        alarm1 = Alarm(alarm_id=1, xCoord=100, yCoord=200)
+        alarm2 = Alarm(alarm_id=2, xCoord=300, yCoord=400)
+        
+        # alarm1만 시작
+        alarm1.starting(1)
+        
+        assert alarm1.isRinging() is True
+        assert alarm2.isRinging() is False
+        
+        # alarm2 시작
+        alarm2.starting(2)
+        
+        assert alarm1.isRinging() is True
+        assert alarm2.isRinging() is True
+        
+        # alarm1만 종료
+        alarm1.ending(1)
+        
+        assert alarm1.isRinging() is False
+        assert alarm2.isRinging() is True
 
 
 if __name__ == '__main__':

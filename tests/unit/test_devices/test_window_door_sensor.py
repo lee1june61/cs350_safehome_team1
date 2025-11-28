@@ -5,7 +5,7 @@ Unit tests for WindowDoorSensor class
 
 import pytest
 from unittest.mock import Mock, patch
-from window_door_sensor import WindowDoorSensor
+from src.devices.sensors.window_door_sensor import WindowDoorSensor
 
 
 class TestWindowDoorSensor:
