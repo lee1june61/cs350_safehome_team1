@@ -74,3 +74,4 @@ class SafetyZonePage(Page):
 
     def on_show(self):
         self._manager.on_show()
+
