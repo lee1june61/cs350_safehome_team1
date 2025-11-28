@@ -28,3 +28,7 @@ class DeviceCameraCaptureMixin(DeviceCameraBase):
         )
         return frame_data.encode("utf-8")
 
+    def get_view(self) -> Optional[bytes]:
+        """InterfaceCamera alias for capture_frame."""
+        return self.capture_frame()
+
