@@ -14,8 +14,13 @@ SRC = ROOT / "safehome" / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+import safehome.src.devices.cameras.safehome_camera_base as camera_base
 from safehome.src.devices.cameras.safehome_camera import SafeHomeCamera
-from safehome.src.utils.exceptions import CameraDisabledError
+from safehome.src.utils.exceptions import (
+    CameraDisabledError,
+    CameraPasswordError,
+    CameraValidationError,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -109,12 +114,30 @@ def test_pan_left_and_right_adjust_angles(camera: SafeHomeCamera) -> None:
     assert camera.get_pan_angle() == 0
 
 
+def test_pan_boundaries_and_disabled(camera: SafeHomeCamera) -> None:
+    camera.enable()
+    camera.pan_angle = camera.MIN_PAN
+    assert camera.pan_left() is False
+    camera.pan_angle = camera.MAX_PAN
+    assert camera.pan_right() is False
+    camera.disable()
+    assert camera.pan_left() is False
+
+
 def test_password_roundtrip(camera: SafeHomeCamera) -> None:
     assert camera.has_password() is False
     camera.set_password("secure123")
     assert camera.has_password() is True
     assert camera.get_password() == "secure123"
     camera.clear_password()
+    assert camera.has_password() is False
+
+
+def test_password_validation_and_alias(camera: SafeHomeCamera) -> None:
+    with pytest.raises(CameraPasswordError):
+        camera.set_password("")
+    camera.set_password("secret")
+    assert camera.delete_password() is True
     assert camera.has_password() is False
 
 
@@ -126,7 +149,90 @@ def test_enable_disable_and_status(camera: SafeHomeCamera) -> None:
     assert camera.is_enabled() is False
 
 
+def test_zoom_boundaries_and_disabled(camera: SafeHomeCamera) -> None:
+    camera.enable()
+    camera.zoom_level = camera.MAX_ZOOM
+    assert camera.zoom_in() is False
+    camera.zoom_level = camera.MIN_ZOOM
+    assert camera.zoom_out() is False
+    camera.disable()
+    assert camera.zoom_in() is False
+
+
 def test_save_info_runs_validation(camera: SafeHomeCamera) -> None:
     camera.enable()
     camera.set_location([150, 180])
     assert camera.save_info() is True
+
+
+def test_validation_errors_detected(camera: SafeHomeCamera) -> None:
+    camera.camera_id = -1
+    with pytest.raises(CameraValidationError):
+        camera.validate()
+    camera.camera_id = 1
+    camera.pan_angle = camera.MAX_PAN + 1
+    with pytest.raises(CameraValidationError):
+        camera.validate()
+    camera.pan_angle = 0
+    camera.zoom_level = camera.MAX_ZOOM + 1
+    with pytest.raises(CameraValidationError):
+        camera.validate()
+
+
+def test_set_location_invalid_input(camera: SafeHomeCamera) -> None:
+    with pytest.raises(CameraValidationError):
+        camera.set_location([1])
+
+
+def test_set_id_reinitializes_device(camera: SafeHomeCamera, monkeypatch) -> None:
+    recorded = {}
+
+    def fake_set_id(new_id: int) -> None:
+        recorded["value"] = new_id
+
+    monkeypatch.setattr(camera._device, "set_id", fake_set_id)
+    camera.set_id(10)
+    assert recorded["value"] == 10
+
+
+def test_cleanup_and_repr(camera: SafeHomeCamera, monkeypatch) -> None:
+    stopped = {"value": False}
+
+    def fake_stop() -> None:
+        stopped["value"] = True
+
+    monkeypatch.setattr(camera._device, "stop", fake_stop)
+    camera.cleanup()
+    assert stopped["value"] is True
+    description = repr(camera)
+    assert "SafeHomeCamera" in description
+    assert f"id={camera.get_id()}" in description
+
+
+def test_temporary_asset_directory(monkeypatch, camera: SafeHomeCamera) -> None:
+    calls: list[Path] = []
+
+    def fake_chdir(path: Path) -> None:
+        calls.append(Path(path))
+
+    monkeypatch.setattr(camera_base.os, "chdir", fake_chdir)
+    original = Path("/tmp/original")
+    monkeypatch.setattr(
+        camera_base.Path,
+        "cwd",
+        classmethod(lambda cls: original),
+    )
+    with camera._temporary_asset_directory():
+        assert calls[-1] == camera._asset_dir
+    assert calls[-1] == original
+
+
+def test_initialize_device_invokes_set_id(camera: SafeHomeCamera, monkeypatch) -> None:
+    recorded = {}
+
+    def fake_set_id(new_id: int) -> None:
+        recorded["value"] = new_id
+
+    monkeypatch.setattr(camera._device, "set_id", fake_set_id)
+    camera._initialize_device(77)
+    assert recorded["value"] == 77
