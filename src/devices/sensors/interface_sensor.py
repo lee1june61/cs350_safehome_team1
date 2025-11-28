@@ -1,24 +1,13 @@
-from abc import ABC, abstractmethod
+"""
+Wrappers around TA-provided virtual sensor interfaces.
+"""
+
+from src.virtual_devices.interface_sensor import (
+    InterfaceSensor as _VirtualInterfaceSensor,
+)
 
 
-class InterfaceSensor(ABC):
+class InterfaceSensor(_VirtualInterfaceSensor):
+    """Keep TA interface under the devices namespace."""
 
-    @abstractmethod
-    def get_id(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def read(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def arm(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def disarm(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def test_armed_state(self):
-        raise NotImplementedError
+    pass

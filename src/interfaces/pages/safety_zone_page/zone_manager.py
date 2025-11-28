@@ -14,13 +14,23 @@ class ZoneManager:
         self.floorplan = floorplan
         self.zones: List[Dict] = []
         self._editing_zone_id: Optional[str] = None # Added type hint
+        self._sensor_cache: List[Dict] = []
         self._ui_updater = ZoneUIUpdater(self, floorplan, zone_list, status_label, sel_info_label)
         self._action_handler = ZoneActionHandler(self) # Instantiated action handler
 
     def load_zones(self):
+        self._refresh_sensor_cache()
         res = self.page.send_to_system('get_safety_zones')
         self.zones = res.get('data', []) if res.get('success') else []
         self._ui_updater.update_zone_list(self.zones)
+
+    def _refresh_sensor_cache(self):
+        """Fetch latest sensor info from the system."""
+        res = self.page.send_to_system('get_sensors')
+        if res.get('success'):
+            self._sensor_cache = res.get('data', [])
+        else:
+            self._sensor_cache = []
 
     def get_selected_zone(self) -> Optional[Dict]:
         sel = self._ui_updater.zone_list.curselection()
@@ -67,17 +77,17 @@ class ZoneManager:
 
     def handle_device_click_info(self, dev_id: str, dtype: str):
         """Handle device click (non-select mode) to display sensor info."""
-        if dtype not in ('sensor', 'motion'):
+        if dtype not in ('sensor', 'motion', 'door_sensor'):
             return
-            
-        res = self.page.send_to_system('get_sensors')
-        if not res.get('success'):
-            return
-            
-        for s in res.get('data', []):
-            if s['id'] == dev_id:
-                armed = 'Armed' if s.get('armed') else 'Disarmed'
-                messagebox.showinfo("Sensor Info", 
-                    f"ID: {dev_id}\nType: {s.get('type', 'Unknown')}\n"
-                    f"Location: {s.get('location', 'Unknown')}\nStatus: {armed}")
+        if not self._sensor_cache:
+            self._refresh_sensor_cache()
+
+        for sensor in self._sensor_cache:
+            if sensor.get('id') == dev_id:
+                armed = 'Armed' if sensor.get('armed') else 'Disarmed'
+                messagebox.showinfo(
+                    "Sensor Info",
+                    f"ID: {dev_id}\nType: {sensor.get('type', 'Unknown')}\n"
+                    f"Location: {sensor.get('location', 'Unknown')}\nStatus: {armed}",
+                )
                 return

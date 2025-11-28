@@ -38,3 +38,10 @@ class SafeHomeCameraPasswordMixin(SafeHomeCameraBase):
     def delete_password(self) -> bool:
         """SDS alias used by legacy components."""
         return self.clear_password()
+
+    def verify_password(self, password: str) -> bool:
+        """Check if provided password unlocks the camera."""
+        with self._lock:
+            if not self._has_password:
+                return True
+            return self.password == password
