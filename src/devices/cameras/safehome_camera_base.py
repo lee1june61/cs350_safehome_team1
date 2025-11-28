@@ -4,19 +4,12 @@ Base utilities shared across SafeHomeCamera mixins.
 from __future__ import annotations
 
 import os
-import sys
 import threading
 from contextlib import contextmanager
 from pathlib import Path
 from typing import List, Optional
 
-_virtual_device_path = (
-    Path(__file__).resolve().parents[3] / "virtual_device_v3" / "virtual_device_v3"
-)
-if str(_virtual_device_path) not in sys.path:
-    sys.path.insert(0, str(_virtual_device_path))
-
-from device.device_camera import DeviceCamera
+from ...virtual_devices.device_camera import DeviceCamera
 
 
 class SafeHomeCameraBase:
@@ -26,9 +19,7 @@ class SafeHomeCameraBase:
     MAX_ZOOM = 9
     MIN_PAN = -5
     MAX_PAN = 5
-    _ASSET_DIR = (
-        Path(__file__).resolve().parents[3] / "virtual_device_v3" / "virtual_device_v3"
-    )
+    _ASSET_DIR = Path(__file__).resolve().parents[2] / "resources" / "images"
     _DEVICE_ASSET_LOCK = threading.RLock()
 
     def __init__(self, camera_id: int, x_coord: int, y_coord: int) -> None:
