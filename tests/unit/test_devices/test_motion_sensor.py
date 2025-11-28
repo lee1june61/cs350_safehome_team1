@@ -5,7 +5,7 @@ Unit tests for Sensor class
 
 import pytest
 from unittest.mock import Mock
-from sensor import Sensor
+from src.devices.sensors.sensor import Sensor
 
 
 class TestSensor:

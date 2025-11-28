@@ -5,10 +5,10 @@ Unit tests for SensorController class
 
 import pytest
 from unittest.mock import Mock, MagicMock
-from sensor_controller import SensorController
-from sensor import Sensor
-from window_door_sensor import WindowDoorSensor
-from motion_sensor import MotionSensor
+from src.devices.sensors.sensor_controller import SensorController
+from src.devices.sensors.sensor import Sensor
+from src.devices.sensors.window_door_sensor import WindowDoorSensor
+from src.devices.sensors.motion_sensor import MotionSensor
 
 
 class TestSensorController:

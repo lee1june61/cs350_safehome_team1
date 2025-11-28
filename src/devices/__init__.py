@@ -4,11 +4,22 @@ SafeHome Devices Package
 Virtual device implementations from TA (virtual_device_v4).
 """
 from .interfaces import InterfaceCamera, InterfaceSensor
-from .device_camera import DeviceCamera
-from .device_sensor_tester import DeviceSensorTester
-from .device_windoor_sensor import DeviceWinDoorSensor
-from .device_motion_detector import DeviceMotionDetector
-from .device_control_panel_abstract import DeviceControlPanelAbstract
+from .camera import DeviceCamera
+from .control_panel_abstract import DeviceControlPanelAbstract
+
+# Import sensor-related classes from the sensors subpackage
+from .sensors import (
+    Sensor,
+    WindowDoorSensor,
+    MotionSensor,
+    SensorController,
+    DeviceSensorTester,
+    DeviceWinDoorSensor,
+    DeviceMotionDetector,
+)
+
+# Import alarm
+from .alarm import Alarm
 
 __all__ = [
     'InterfaceCamera',
@@ -18,4 +29,9 @@ __all__ = [
     'DeviceWinDoorSensor',
     'DeviceMotionDetector',
     'DeviceControlPanelAbstract',
+    'Sensor',
+    'WindowDoorSensor',
+    'MotionSensor',
+    'SensorController',
+    'Alarm',
 ]
