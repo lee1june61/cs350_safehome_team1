@@ -28,8 +28,9 @@ class WebInterface(tk.Toplevel):
 
     def _setup_window(self):
         self.title("SafeHome Web Interface")
-        self.geometry("900x700")
-        self.minsize(800, 600)
+        # Extra width prevents right-side panels (e.g., Safety Zones) from clipping
+        self.geometry("1040x720")
+        self.minsize(960, 620)
 
     def _create_container(self):
         self._container = ttk.Frame(self)

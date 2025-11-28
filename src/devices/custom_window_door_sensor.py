@@ -2,11 +2,7 @@
 Custom Window/Door contact sensor implementation.
 A detailed magnetic contact sensor simulation that extends the base virtual device.
 """
-<<<<<<<< HEAD:src/devices/sensors/window_door_sensor.py
-from ..interfaces import InterfaceSensor
-========
 from ..virtual_devices.device_windoor_sensor import DeviceWinDoorSensor as BaseWinDoorSensor
->>>>>>>> origin/main:src/devices/custom_window_door_sensor.py
 
 
 class CustomWinDoorSensor(BaseWinDoorSensor):

@@ -245,11 +245,28 @@ class System:
 
     def _cmd_verify_identity(self, value="", **kw) -> Dict:
         """Verify identity with address or phone (SRS V.2.b step 3)."""
-        v = value.strip().replace("-", "").replace(" ", "")
-        if v and len(v) >= 3:
+        v = value.strip()
+        if not v:
+            return {"success": False, "message": "Please enter address or phone number"}
+        
+        # Remove common formatting characters
+        cleaned = v.replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
+        
+        # Check if it's all digits (phone number) - must be at least 10 digits
+        if cleaned.isdigit():
+            if len(cleaned) >= 10:
+                self._verified = True
+                return {"success": True}
+            else:
+                return {"success": False, "message": "Phone number must be at least 10 digits"}
+        
+        # Check if it's an address (contains letters and numbers/address components)
+        # Address should have at least 5 characters and contain letters
+        if len(v) >= 5 and any(c.isalpha() for c in v):
             self._verified = True
             return {"success": True}
-        return {"success": False, "message": "Invalid verification"}
+        
+        return {"success": False, "message": "Invalid verification. Enter a valid phone number (10+ digits) or address (5+ chars with letters)"}
 
     def _cmd_is_verified(self, **kw) -> Dict:
         """Check if user identity is verified."""
@@ -583,6 +600,17 @@ class System:
             return {"success": success, "zoom": cam.zoom}
         return {"success": False, "message": "Camera not found"}
 
+    def _cmd_camera_tilt(self, camera_id="", direction="", **kw) -> Dict:
+        """Tilt camera up/down (SRS V.3.b)."""
+        cam = self._get_camera_obj_by_id(camera_id)
+        if cam:
+            if hasattr(cam, 'tilt_up') and hasattr(cam, 'tilt_down'):
+                success = cam.tilt_up() if direction == "up" else cam.tilt_down()
+                return {"success": success, "tilt": cam.tilt_angle}
+            else:
+                return {"success": False, "message": "Tilt not supported"}
+        return {"success": False, "message": "Camera not found"}
+
     def _cmd_enable_camera(self, camera_id="", **kw) -> Dict:
         """Enable camera (SRS V.3.f)."""
         cam = self._get_camera_obj_by_id(camera_id)
@@ -633,11 +661,18 @@ class System:
         return {"success": False, "message": "Camera not found"}
 
     def _cmd_get_thumbnails(self, **kw) -> Dict:
-        """Get thumbnail data for all enabled cameras without password (SRS V.3.e)."""
+        """Get thumbnail data for all enabled cameras (SRS V.3.e).
+        Includes cameras with passwords but marks them as locked."""
         thumbnails = {}
         for c in self._cameras:
-            if c.is_enabled() and not c.has_password():
-                thumbnails[c.get_status()["id"]] = c.get_status()
+            if c.is_enabled():
+                status = c.get_status()
+                # Mark cameras with password as locked
+                if c.has_password():
+                    status["locked"] = True
+                else:
+                    status["locked"] = False
+                thumbnails[status["id"]] = status
         return {"success": True, "data": thumbnails}
 
     # ========== System Settings (SRS V.1.c) ==========

@@ -5,11 +5,7 @@ virtual device.
 """
 import random
 import time
-<<<<<<<< HEAD:src/devices/sensors/motion_sensor.py
-from ..interfaces import InterfaceSensor
-========
 from ..virtual_devices.device_motion_detector import DeviceMotionDetector as BaseMotionDetector
->>>>>>>> origin/main:src/devices/custom_motion_detector.py
 
 
 class CustomMotionDetector(BaseMotionDetector):

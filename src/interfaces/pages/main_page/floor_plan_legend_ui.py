@@ -18,7 +18,7 @@ def create_floor_plan_legend_section(parent_frame: tk.Widget) -> tk.Frame:
         legend_frame,
         text=(
             "Legend: 🔴 Armed  🟢 Disarmed  |  "
-            "🟥 Window/Door  🟦 Motion  📹 Camera  🔔 Alarm"
+            "🔴 Red: Window Sensor  🔵 Blue: Door Sensor / Motion Sensor  🟣 Purple: Camera"
         ),
         font=("Arial", 9),
         bg="#ecf0f1",

@@ -50,17 +50,28 @@ class SingleCameraViewUIBuilder:
         self._page._info.pack(anchor="w")
 
     def _build_ptz_section(self, parent):
-        """Build pan/zoom controls."""
-        ptz = ttk.LabelFrame(parent, text="Pan/Zoom", padding=8)
+        """Build pan/tilt/zoom controls."""
+        ptz = ttk.LabelFrame(parent, text="Pan/Tilt/Zoom", padding=8)
         ptz.pack(fill="x", pady=5)
 
+        # Pan controls
         pf = ttk.Frame(ptz)
         pf.pack()
+        ttk.Label(pf, text="Pan:", font=('Arial', 9)).pack(side="left", padx=2)
         ttk.Button(pf, text="◄ L", command=lambda: self._page._pan("L"), width=6).pack(side="left", padx=2)
         ttk.Button(pf, text="R ►", command=lambda: self._page._pan("R"), width=6).pack(side="left", padx=2)
 
+        # Tilt controls
+        tf = ttk.Frame(ptz)
+        tf.pack(pady=5)
+        ttk.Label(tf, text="Tilt:", font=('Arial', 9)).pack(side="left", padx=2)
+        ttk.Button(tf, text="↑ Up", command=lambda: self._page._tilt("up"), width=6).pack(side="left", padx=2)
+        ttk.Button(tf, text="↓ Down", command=lambda: self._page._tilt("down"), width=6).pack(side="left", padx=2)
+
+        # Zoom controls
         zf = ttk.Frame(ptz)
         zf.pack(pady=5)
+        ttk.Label(zf, text="Zoom:", font=('Arial', 9)).pack(side="left", padx=2)
         ttk.Button(zf, text="+ In", command=lambda: self._page._zoom("in"), width=6).pack(side="left", padx=2)
         ttk.Button(zf, text="- Out", command=lambda: self._page._zoom("out"), width=6).pack(side="left", padx=2)
 

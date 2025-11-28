@@ -11,6 +11,7 @@ from .safehome_camera_lifecycle import SafeHomeCameraLifecycleMixin
 from .safehome_camera_location import SafeHomeCameraLocationMixin
 from .safehome_camera_pan import SafeHomeCameraPanMixin
 from .safehome_camera_password import SafeHomeCameraPasswordMixin
+from .safehome_camera_tilt import SafeHomeCameraTiltMixin
 from .safehome_camera_validation import SafeHomeCameraValidationMixin
 from .safehome_camera_zoom import SafeHomeCameraZoomMixin
 
@@ -19,6 +20,7 @@ class SafeHomeCamera(
     SafeHomeCameraDisplayMixin,
     SafeHomeCameraZoomMixin,
     SafeHomeCameraPanMixin,
+    SafeHomeCameraTiltMixin,
     SafeHomeCameraLocationMixin,
     SafeHomeCameraPasswordMixin,
     SafeHomeCameraLifecycleMixin,

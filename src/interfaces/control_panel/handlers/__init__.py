@@ -1,4 +1,5 @@
 """Control panel handlers module."""
+
 from .alarm_handler import AlarmHandler
 from .display_handler import DisplayHandler
 from .password_handler import PasswordHandler
@@ -14,4 +15,3 @@ __all__ = [
     "StateTransitions",
     "SecurityActions",
 ]
-
