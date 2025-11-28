@@ -1,3 +1,6 @@
+<<<<<<< HEAD
+"""Resource assets for SafeHome."""
+=======
 """
 SafeHome Resources Package
 
@@ -32,3 +35,4 @@ def get_image(name: str) -> Path:
         Path to the image file
     """
     return get_images_path() / name
+>>>>>>> origin/main
