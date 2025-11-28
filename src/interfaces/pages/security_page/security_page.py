@@ -1,7 +1,7 @@
 """SecurityPage - Security menu with identity verification (SRS V.2)"""
 import tkinter as tk
 from tkinter import ttk
-from ..components.page import Page
+from ...components.page import Page
 
 
 class SecurityPage(Page):
@@ -68,3 +68,4 @@ class SecurityPage(Page):
         else:
             self._val.set('')
             self._set_verified(False)
+
