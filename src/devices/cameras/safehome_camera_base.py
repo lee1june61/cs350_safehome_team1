@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import List, Optional
 
 _virtual_device_path = (
-    Path(__file__).resolve().parents[4] / "virtual_device_v3" / "virtual_device_v3"
+    Path(__file__).resolve().parents[3] / "virtual_device_v3" / "virtual_device_v3"
 )
 if str(_virtual_device_path) not in sys.path:
     sys.path.insert(0, str(_virtual_device_path))
@@ -27,7 +27,7 @@ class SafeHomeCameraBase:
     MIN_PAN = -5
     MAX_PAN = 5
     _ASSET_DIR = (
-        Path(__file__).resolve().parents[4] / "virtual_device_v3" / "virtual_device_v3"
+        Path(__file__).resolve().parents[3] / "virtual_device_v3" / "virtual_device_v3"
     )
     _DEVICE_ASSET_LOCK = threading.RLock()
 

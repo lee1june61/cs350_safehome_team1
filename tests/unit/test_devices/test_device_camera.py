@@ -11,14 +11,14 @@ from unittest.mock import Mock
 import pytest  # type: ignore[import]
 
 ROOT = Path(__file__).resolve().parents[2]
-SRC = ROOT / "safehome" / "src"
+SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from safehome.src.controllers.camera_controller import CameraController
-from safehome.src.devices.cameras.device_camera import DeviceCamera
-from safehome.src.devices.cameras.safehome_camera import SafeHomeCamera
-from safehome.src.utils.exceptions import CameraDisabledError, CameraValidationError
+from src.controllers.camera_controller import CameraController
+from src.devices.cameras.device_camera import DeviceCamera
+from src.devices.cameras.safehome_camera import SafeHomeCamera
+from src.utils.exceptions import CameraDisabledError, CameraValidationError
 
 
 @pytest.fixture
@@ -223,7 +223,7 @@ def fake_device(monkeypatch):
             pass
 
     monkeypatch.setattr(
-        "safehome.src.devices.cameras.safehome_camera_base.DeviceCamera",
+        "src.devices.cameras.safehome_camera_base.DeviceCamera",
         FakeDevice,
     )
 

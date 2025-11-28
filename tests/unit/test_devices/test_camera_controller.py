@@ -10,30 +10,33 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest  # type: ignore[import]
 
 ROOT = Path(__file__).resolve().parents[2]
-SRC = ROOT / "safehome" / "src"
+SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from safehome.src.controllers.camera_controller import CameraController
-from safehome.src.devices.cameras.safehome_camera import SafeHomeCamera
+from src.controllers.camera_controller import CameraController
+from src.devices.cameras.device_camera import DeviceCamera
+from src.devices.cameras.safehome_camera import SafeHomeCamera
+
+
+@pytest.fixture
+def camera_controller():
+    """Fixture to create a CameraController instance"""
+    return CameraController()
+
+
+@pytest.fixture
+def mock_camera():
+    """Fixture to create a mock SafeHomeCamera"""
+    camera = Mock(spec=SafeHomeCamera)
+    camera.get_id = Mock(return_value=1)
+    camera.get_location = Mock(return_value=[300, 400])
+    camera.is_enabled = Mock(return_value=False)
+    return camera
 
 
 class TestCameraController:
     """Unit tests for CameraController class"""
-
-    @pytest.fixture
-    def camera_controller(self):
-        """Fixture to create a CameraController instance"""
-        return CameraController()
-
-    @pytest.fixture
-    def mock_camera(self):
-        """Fixture to create a mock SafeHomeCamera"""
-        camera = Mock(spec=SafeHomeCamera)
-        camera.get_id = Mock(return_value=1)
-        camera.get_location = Mock(return_value=[300, 400])
-        camera.is_enabled = Mock(return_value=False)
-        return camera
 
     # UT-CC-addCamera-Valid
     def test_add_camera_valid_location(self, camera_controller):
@@ -690,6 +693,100 @@ class TestCameraController:
 
         # Assert
         assert result is False  # Nothing to delete
+
+
+@pytest.fixture(autouse=True)
+def fake_device(monkeypatch):
+    """Provide a lightweight virtual device for SafeHomeCamera instances."""
+
+    class FakeDevice:
+        def __init__(self):
+            self.current_id = None
+            self.stopped = False
+
+        def set_id(self, camera_id: int) -> None:
+            self.current_id = camera_id
+
+        def zoom_in(self) -> bool:
+            return True
+
+        def zoom_out(self) -> bool:
+            return True
+
+        def pan_left(self) -> bool:
+            return True
+
+        def pan_right(self) -> bool:
+            return True
+
+        def get_view(self) -> str:
+            return f"frame-{self.current_id}"
+
+        def stop(self) -> None:
+            self.stopped = True
+
+    monkeypatch.setattr(
+        "src.devices.cameras.safehome_camera_base.DeviceCamera",
+        FakeDevice,
+    )
+
+
+class TestCameraControllerIntegration:
+    """Integration-style tests to cover real camera behaviors."""
+
+    def test_controller_with_real_camera_flow(self, camera_controller):
+        camera_id = camera_controller.add_camera(180, 260)
+        assert camera_id is not None
+
+        real_camera = camera_controller.camera_list[0]
+        assert real_camera.enable() is True
+        assert real_camera.zoom_in() is True
+        assert real_camera.zoom_out() is True
+        assert real_camera.pan_left() is True
+        assert real_camera.pan_right() is True
+
+        real_camera.set_password("secret123")
+        assert real_camera.has_password() is True
+        assert real_camera.get_password() == "secret123"
+        assert real_camera.delete_password() is True
+        assert real_camera.has_password() is False
+
+        real_camera.set_location([200, 220])
+        assert real_camera.get_location() == [200, 220]
+
+        assert camera_controller.enable_camera(camera_id) is True
+        single_view = camera_controller.display_single_view(camera_id)
+        assert isinstance(single_view, str) and single_view.startswith("frame-")
+
+        info = camera_controller.get_all_camera_info()
+        assert info[0]["location"] == [200, 220]
+        assert info[0]["enabled"] is True
+
+        assert camera_controller.disable_camera(camera_id) is True
+        assert camera_controller.enable_all_camera() == 1
+        assert camera_controller.disable_all_camera() == 1
+
+    def test_device_camera_behaviour_is_exercised(self):
+        device = DeviceCamera("Integration Entry", 42)
+        assert device.set_pan(30) is True
+        assert device.set_tilt(-15) is True
+        assert device.set_zoom(25) is True
+
+        frame = device.capture_frame()
+        assert isinstance(frame, bytes)
+        decoded = frame.decode("utf-8")
+        assert "Integration Entry" in decoded
+
+        device.set_password("pw")
+        assert device.verify_password("pw") is True
+        assert device.verify_password("wrong") is False
+        device.clear_password()
+        assert device.verify_password("anything") is True
+
+        device.disable()
+        assert device.set_pan(0) is False
+        device.enable()
+        assert device.set_pan(0) is True
 
 
 if __name__ == "__main__":
