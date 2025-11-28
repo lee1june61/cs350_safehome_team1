@@ -1,115 +1,82 @@
-"""ThumbnailViewPage - View all cameras as thumbnails (SRS GUI)"""
+"""ThumbnailViewPage - All cameras thumbnails (SRS V.3.e)"""
 import tkinter as tk
 from tkinter import ttk
-from PIL import Image, ImageTk
+from PIL import ImageTk
 from ..components.page import Page
 
 
 class ThumbnailViewPage(Page):
-    """Thumbnail view - SRS 'View thumbnail Shots'"""
+    """View all cameras as thumbnails. Shows all enabled cameras with lock indicators."""
     
-    def _build_ui(self) -> None:
-        # Header
+    def _build_ui(self):
         self._create_header("All Cameras", back_page='surveillance')
-        
-        # Main content - grid of thumbnails
         self._content = ttk.Frame(self._frame)
         self._content.pack(expand=True, fill='both', padx=20, pady=10)
-        
-        # Will hold camera frames
-        self._camera_frames = []
-        self._cameras = []
-        self._photos = []
-        self._update_timer = None
+        self._frames = []
+        self._images = []  # Keep references to images
     
-    def _create_thumbnails(self) -> None:
-        """Create thumbnail grid"""
-        # Clear existing
-        for frame in self._camera_frames:
-            frame.destroy()
-        self._camera_frames = []
-        self._cameras = []
-        self._photos = []
+    def _create_grid(self):
+        for f in self._frames: f.destroy()
+        self._frames = []
+        self._images = []
         
-        # Get camera list
-        response = self.send_to_system('get_cameras')
-        if not response.get('success'):
-            return
+        res = self.send_to_system('get_thumbnails')
+        cams = res.get('data', {}) if res.get('success') else {}
         
-        camera_data = response.get('data', [])
-        
-        # Create DeviceCamera for each
-        from src.devices import DeviceCamera
-        
-        cols = 3  # 3 columns
-        for i, cam_data in enumerate(camera_data):
-            row, col = i // cols, i % cols
+        cols = 3
+        for i, (cam_id, cam) in enumerate(cams.items()):
+            r, c = i // cols, i % cols
+            is_locked = cam.get('locked', False)
             
-            frame = ttk.LabelFrame(self._content, text=f"Camera {cam_data['id']}: {cam_data['location']}")
-            frame.grid(row=row, column=col, padx=10, pady=10, sticky='nsew')
+            f = ttk.LabelFrame(self._content, text=f"{cam_id}: {cam.get('location', '')}")
+            f.grid(row=r, column=c, padx=8, pady=8, sticky='nsew')
+            self._content.columnconfigure(c, weight=1)
+            self._content.rowconfigure(r, weight=1)
             
-            # Configure grid weights
-            self._content.columnconfigure(col, weight=1)
-            self._content.rowconfigure(row, weight=1)
-            
-            # Create label for video
-            label = ttk.Label(frame, text="Loading...")
-            label.pack(expand=True, fill='both', padx=5, pady=5)
-            
-            # Click to view full
-            label.bind('<Button-1>', lambda e, cid=cam_data['id']: self._view_camera(cid))
-            
-            self._camera_frames.append(frame)
-            
-            # Create camera device (if not password protected)
-            if not cam_data.get('has_password'):
-                camera = DeviceCamera()
-                camera.set_id(cam_data['id'])
-                self._cameras.append((camera, label, cam_data))
+            # Get thumbnail image
+            if is_locked:
+                # Show locked indicator
+                locked_label = ttk.Label(
+                    f, 
+                    text="🔒 LOCKED\n\nPassword Required",
+                    font=('Arial', 14, 'bold'),
+                    foreground='red',
+                    anchor='center'
+                )
+                locked_label.pack(expand=True, fill='both', padx=5, pady=5)
+                locked_label.bind('<Button-1>', lambda e, cid=cam_id: self._view(cid))
             else:
-                label.config(text="🔒 Password Protected")
-                self._cameras.append((None, label, cam_data))
-    
-    def _update_thumbnails(self) -> None:
-        """Update all thumbnail views"""
-        if not self._is_visible:
-            return
+                # Get actual thumbnail
+                view_res = self.send_to_system('get_camera_view', camera_id=cam_id)
+                if view_res.get('success') and view_res.get('view'):
+                    view_img = view_res.get('view')
+                    # Resize to thumbnail size
+                    try:
+                        from PIL import Image
+                        thumbnail = view_img.resize((200, 150), Image.Resampling.LANCZOS)
+                    except (AttributeError, ImportError):
+                        # Fallback for older PIL versions
+                        thumbnail = view_img.resize((200, 150))
+                    photo = ImageTk.PhotoImage(thumbnail)
+                    self._images.append(photo)  # Keep reference
+                    
+                    img_label = ttk.Label(f, image=photo, anchor='center')
+                    img_label.pack(expand=True, fill='both', padx=5, pady=5)
+                    img_label.bind('<Button-1>', lambda e, cid=cam_id: self._view(cid))
+                else:
+                    # Fallback if image not available
+                    lbl = ttk.Label(f, text=f"📷\n{cam_id}", font=('Arial', 16), anchor='center')
+                    lbl.pack(expand=True, fill='both', padx=5, pady=5)
+                    lbl.bind('<Button-1>', lambda e, cid=cam_id: self._view(cid))
+            
+            self._frames.append(f)
         
-        for camera, label, cam_data in self._cameras:
-            if camera and cam_data.get('enabled', True):
-                try:
-                    img = camera.get_view()
-                    if img:
-                        img = img.resize((200, 150))
-                        photo = ImageTk.PhotoImage(img)
-                        label.config(image=photo, text='')
-                        # Keep reference
-                        label._photo = photo
-                except Exception:
-                    label.config(text="Error")
-        
-        # Schedule next update (1 FPS)
-        self._update_timer = self._frame.after(1000, self._update_thumbnails)
+        if not cams:
+            ttk.Label(self._content, text="No cameras available", font=('Arial', 14)).pack(pady=50)
     
-    def _view_camera(self, camera_id: int) -> None:
-        """Navigate to single camera view"""
-        self._web_interface.set_context('camera_id', camera_id)
+    def _view(self, cam_id):
+        self._web_interface.set_context('camera_id', cam_id)
         self.navigate_to('single_camera_view')
     
-    def _stop_cameras(self) -> None:
-        """Stop all camera threads"""
-        if self._update_timer:
-            self._frame.after_cancel(self._update_timer)
-            self._update_timer = None
-        
-        for camera, label, cam_data in self._cameras:
-            if camera:
-                camera.stop()
-    
-    def on_show(self) -> None:
-        self._create_thumbnails()
-        self._update_thumbnails()
-    
-    def on_hide(self) -> None:
-        self._stop_cameras()
-        self._cameras = []
+    def on_show(self): 
+        self._create_grid()

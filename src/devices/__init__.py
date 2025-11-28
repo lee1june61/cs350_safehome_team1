@@ -1,9 +1,14 @@
 """
 SafeHome Devices Package
 
-Virtual device implementations from TA (virtual_device_v4).
+Only the camera-related APIs are imported eagerly here to avoid pulling in
+sensor modules (which may not be needed for every test suite).
 """
+
 from .interfaces import InterfaceCamera, InterfaceSensor
+from .cameras.device_camera import DeviceCamera
+from .cameras.safehome_camera import SafeHomeCamera
+from .custom_device_camera import CustomDeviceCamera
 from .camera import DeviceCamera
 from .control_panel_abstract import DeviceControlPanelAbstract
 

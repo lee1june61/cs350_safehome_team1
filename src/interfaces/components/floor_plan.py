@@ -1,92 +1,153 @@
-"""
-FloorPlan - Contains and displays the house blueprint
+"""FloorPlan - House blueprint with clickable devices (SDS: FloorPlan class)"""
 
-Single Responsibility: Manage floor plan display and devices.
-"""
 import tkinter as tk
-from typing import List, Dict, Optional, Callable
-
-from .device_icon import DeviceIcon
-from .device_position import DevicePosition
-from .device_renderer import DeviceRenderer
-from .room_renderer import RoomRenderer, DEFAULT_ROOMS
+from typing import Dict, Optional, Callable, Set
+from .floor_plan_data import DEVICES
+from .floor_plan_renderer import load_image, draw_device
 
 
 class FloorPlan:
-    """Manages and displays house floor plan with device icons"""
-    
-    def __init__(self, parent: tk.Widget, width: int = 400, height: int = 300):
+    """Floor plan with clickable device icons."""
+
+    def __init__(
+        self,
+        parent: tk.Widget,
+        width: int = 450,
+        height: int = 280,
+        show_cameras: bool = True,
+        show_sensors: bool = True,
+    ):
         self._parent = parent
-        self._width = width
-        self._height = height
+        self._w, self._h = width, height
         self._canvas: Optional[tk.Canvas] = None
-        self._devices: Dict[str, DeviceIcon] = {}
-        self._on_device_click: Optional[Callable] = None
-        self._rooms = DEFAULT_ROOMS
-    
-    def create_canvas(self) -> tk.Canvas:
-        """Create and return the floor plan canvas"""
-        if self._canvas is None:
-            self._canvas = tk.Canvas(
-                self._parent, width=self._width, height=self._height,
-                bg='#F5F5F5', highlightthickness=1, highlightbackground='#BDBDBD'
-            )
-            self._draw()
+        self._photo = None
+        self._on_click: Optional[Callable] = None
+        self._on_sensor_click: Optional[Callable] = None
+        self._states: Dict[str, bool] = {}
+        self._selected: Set[str] = set()
+        self._show_cameras = show_cameras
+        self._show_sensors = show_sensors
+        self._select_mode = False
+        # Image transformation parameters
+        self._img_x_off = 0
+        self._img_y_off = 0
+        self._img_scale_x = 1.0
+        self._img_scale_y = 1.0
+
+    def create(self) -> tk.Canvas:
+        # Fixed image size: 607x373
+        # Canvas should be at least this size to display the image without clipping
+        FIXED_IMG_WIDTH = 607
+        FIXED_IMG_HEIGHT = 373
+        canvas_width = max(self._w, FIXED_IMG_WIDTH)
+        canvas_height = max(self._h, FIXED_IMG_HEIGHT)
+
+        self._canvas = tk.Canvas(
+            self._parent,
+            width=canvas_width,
+            height=canvas_height,
+            bg="#f0f0f0",
+            highlightthickness=1,
+            highlightbackground="#ccc",
+        )
+        self._draw()
         return self._canvas
-    
-    def _draw(self) -> None:
-        """Redraw entire floor plan"""
+
+    def _draw(self):
         if not self._canvas:
             return
-        self._canvas.delete('all')
-        RoomRenderer.draw_rooms(self._canvas, self._rooms)
+        self._canvas.delete("all")
+        result = load_image(self._canvas, self._w, self._h)
+        if result and isinstance(result, tuple) and len(result) == 5:
+            (
+                self._photo,
+                self._img_x_off,
+                self._img_y_off,
+                self._img_scale_x,
+                self._img_scale_y,
+            ) = result
+        else:
+            self._photo = result if result else None
+            # Fallback: assume image fills canvas (no scaling/offset)
+            self._img_x_off, self._img_y_off = 0, 0
+            self._img_scale_x, self._img_scale_y = 1.0, 1.0
         self._draw_devices()
-    
-    def _draw_devices(self) -> None:
-        """Draw all device icons"""
-        for device in self._devices.values():
-            DeviceRenderer.draw(device, self._canvas)
-            if self._on_device_click:
-                DeviceRenderer.bind_click(device, self._canvas, self._on_device_click)
-    
-    def add_device(self, device: DeviceIcon) -> None:
-        """Add device to floor plan"""
-        self._devices[device.device_id] = device
-        if self._canvas:
-            DeviceRenderer.draw(device, self._canvas)
-            if self._on_device_click:
-                DeviceRenderer.bind_click(device, self._canvas, self._on_device_click)
-    
-    def remove_device(self, device_id: str) -> None:
-        """Remove device from floor plan"""
-        if device_id in self._devices:
-            self._devices.pop(device_id)
-            if self._canvas:
-                self._canvas.delete(f'device_{device_id}')
-    
-    def get_device(self, device_id: str) -> Optional[DeviceIcon]:
-        return self._devices.get(device_id)
-    
-    def get_all_devices(self) -> List[DeviceIcon]:
-        return list(self._devices.values())
-    
-    def set_device_click_handler(self, handler: Callable) -> None:
-        self._on_device_click = handler
-    
-    def refresh(self) -> None:
-        self._draw()
-    
-    def highlight_devices(self, device_ids: List[str]) -> None:
-        """Highlight specific devices"""
-        for device_id, device in self._devices.items():
-            device.is_active = device_id in device_ids
+
+    def _draw_devices(self):
+        # Original image dimensions (607x373) - fixed size
+        ORIGINAL_IMG_WIDTH = 607
+        ORIGINAL_IMG_HEIGHT = 373
+
+        for dev_id, (nx, ny, dtype) in DEVICES.items():
+            if dtype == "camera" and not self._show_cameras:
+                continue
+            if dtype in ("sensor", "motion", "door_sensor") and not self._show_sensors:
+                continue
+
+            # Convert normalized coordinates (0-1) to pixel coordinates
+            # Since image is displayed at fixed size (607x373), we can use coordinates directly
+            orig_x = nx * ORIGINAL_IMG_WIDTH
+            orig_y = ny * ORIGINAL_IMG_HEIGHT
+
+            # Apply offset and scale (should be 0, 0, 1.0, 1.0 for fixed-size image)
+            x = int(self._img_x_off + orig_x * self._img_scale_x)
+            y = int(self._img_y_off + orig_y * self._img_scale_y)
+
+            armed = self._states.get(dev_id, False)
+            selected = dev_id in self._selected
+            draw_device(
+                self._canvas, dev_id, x, y, dtype, armed, selected, self._handle_click
+            )
+
+    def _handle_click(self, dev_id: str, dtype: str):
+        if self._select_mode and dtype in ("sensor", "motion", "door_sensor"):
+            if dev_id in self._selected:
+                self._selected.discard(dev_id)
+            else:
+                self._selected.add(dev_id)
+            self.refresh()
+            if self._on_sensor_click:
+                self._on_sensor_click(dev_id, dtype, dev_id in self._selected)
+        elif self._on_click:
+            self._on_click(dev_id, dtype)
+
+    def set_on_click(self, handler: Callable[[str, str], None]):
+        self._on_click = handler
+
+    def set_on_sensor_click(self, handler: Callable[[str, str, bool], None]):
+        self._on_sensor_click = handler
+
+    def set_select_mode(self, enabled: bool):
+        self._select_mode = enabled
+        if not enabled:
+            self._selected.clear()
         self.refresh()
-    
-    def load_devices_from_list(self, devices: List[Dict]) -> None:
-        """Load devices from list of dictionaries"""
-        self._devices.clear()
-        for i, data in enumerate(devices):
-            if 'x' not in data:
-                data['x'] = 100 + (i % 4) * 80
-                data['y'] = 80 + (i // 4) * 80
-            self.add_device(DeviceIcon.from_dict(data))
+
+    def set_armed(self, device_id: str, armed: bool):
+        self._states[device_id] = armed
+
+    def set_selected(self, device_ids: list):
+        self._selected = set(device_ids)
+        self.refresh()
+
+    def get_selected(self) -> list:
+        return list(self._selected)
+
+    def clear_selection(self):
+        self._selected.clear()
+        self.refresh()
+
+    def refresh(self):
+        self._draw()
+
+    def get_devices(self, dtype: str = None) -> list:
+        if dtype:
+            return [d for d, (_, _, t) in DEVICES.items() if t == dtype]
+        return list(DEVICES.keys())
+
+    def get_sensors(self) -> list:
+        return [
+            d
+            for d, (_, _, t) in DEVICES.items()
+            if t in ("sensor", "motion", "door_sensor")
+        ]

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 """센서 패키지"""
 
 import sys
@@ -39,3 +40,11 @@ __all__ = [
     'DeviceWinDoorSensor',
     'DeviceMotionDetector',
 ]
+=======
+"""Sensor devices package."""
+
+from .motion_sensor import CustomMotionDetector as DeviceMotionDetector
+from .window_door_sensor import CustomWinDoorSensor as DeviceWinDoorSensor
+
+__all__ = ["DeviceMotionDetector", "DeviceWinDoorSensor"]
+>>>>>>> 9a4a412e3225b666a8e21459659dbb99e759a5d8
