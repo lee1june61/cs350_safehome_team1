@@ -411,6 +411,34 @@ class System:
         """Get all sensors."""
         return {"success": True, "data": [s.get_status() for s in self._sensors]}
 
+    def _cmd_get_all_devices_status(self, **kw) -> Dict:
+        """Get status of all devices (sensors and cameras) for floorplan display."""
+        devices = {}
+        
+        # Add all sensors
+        for s in self._sensors:
+            status = s.get_status()
+            dev_id = status.get("id", "Unknown")
+            devices[dev_id] = {
+                "type": "sensor",
+                "armed": status.get("armed", False),
+                "location": status.get("location", "Unknown"),
+                "status": status.get("status", "closed"),
+            }
+        
+        # Add all cameras
+        for c in self._cameras:
+            status = c.get_status()
+            dev_id = status.get("id", "Unknown")
+            devices[dev_id] = {
+                "type": "camera",
+                "armed": status.get("enabled", False),  # Use enabled as armed for cameras
+                "location": status.get("location", "Unknown"),
+                "enabled": status.get("enabled", False),
+            }
+        
+        return {"success": True, "data": devices}
+
     def _cmd_arm_sensor(self, sensor_id="", **kw) -> Dict:
         """Arm individual sensor."""
         self._set_sensor_armed(sensor_id, True)
@@ -462,6 +490,38 @@ class System:
         """Clear alarm state."""
         self._state = "READY"
         return {"success": True}
+
+    def _cmd_get_alarm_status(self, **kw) -> Dict:
+        """Get current alarm status for polling."""
+        is_alarm = self._state == "ALARM"
+        sensor_id = "Unknown"
+        zone_name = "Unknown"
+        alarm_type = "INTRUSION"
+        
+        # If alarm is active, try to get sensor/zone info from recent log
+        if is_alarm and self._logs:
+            latest = self._logs[0]
+            if latest.get("event") == "INTRUSION":
+                detail = latest.get("detail", "")
+                # Parse detail string if needed
+                if "Sensor:" in detail and "Zone:" in detail:
+                    parts = detail.split("Zone:")
+                    if len(parts) == 2:
+                        zone_name = parts[1].strip()
+                        sensor_part = parts[0].replace("Sensor:", "").strip()
+                        # Extract sensor ID from format like "S1 (WINDOW @ DR Top)"
+                        if "(" in sensor_part:
+                            sensor_id = sensor_part.split("(")[0].strip()
+        
+        return {
+            "success": True,
+            "data": {
+                "alarm_active": is_alarm,
+                "sensor_id": sensor_id,
+                "zone_name": zone_name,
+                "alarm_type": alarm_type,
+            },
+        }
 
     # ========== Mode Configuration (SRS V.2.i) ==========
     def _cmd_get_mode_configuration(self, mode="", **kw) -> Dict:
