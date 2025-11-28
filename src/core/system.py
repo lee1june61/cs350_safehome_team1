@@ -8,13 +8,14 @@ SRS References:
 - V.3: Surveillance functions (camera view, pan/zoom, enable/disable, passwords)
 """
 
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Tuple
 from datetime import datetime
 
 from ..controllers.camera_controller import CameraController
 from ..devices.cameras.safehome_camera import SafeHomeCamera
-from ..devices.custom_motion_detector import CustomMotionDetector
-from ..devices.custom_window_door_sensor import CustomWinDoorSensor
+from ..devices.sensors.sensor_controller import SensorController
+from ..devices.sensors.window_door_sensor import WindowDoorSensor
+from ..devices.sensors.motion_sensor import MotionSensor
 from ..utils.exceptions import CameraNotFoundError
 
 # Device data matching floorplan.png (C=Camera, S=Sensor, M=Motion)
@@ -49,6 +50,23 @@ MODE_CONFIGS = {
     "GUEST": ["S1", "S2", "S5", "S6"],  # Same as HOME
 }
 
+CAMERAS = [
+    {"id": "C1", "location": "Front Entry", "x": 220, "y": 185},
+    {"id": "C2", "location": "Living Room", "x": 438, "y": 609},
+    {"id": "C3", "location": "Back Patio", "x": 775, "y": 827},
+]
+
+SENSOR_COORDS: Dict[str, Tuple[int, int]] = {
+    "S1": (35, 90),
+    "S2": (115, 36),
+    "S3": (35, 255),
+    "S4": (450, 42),
+    "S5": (582, 140),
+    "S6": (582, 275),
+    "M1": (70, 140),
+    "M2": (285, 190),
+}
+
 
 class System:
     """Main system controller - handles all requests from UI components."""
@@ -73,34 +91,17 @@ class System:
         self._delay_time = 30  # seconds before calling monitor
         self._monitor_phone = "911"
 
-        # Data stores
-        self._sensors: List[Union[CustomMotionDetector, CustomWinDoorSensor]] = []
-        for sensor_data in SENSORS:
-            sensor_id_str = sensor_data.get("id", "S0")
-            try:
-                # ID is like 'S1', 'M2', so we take the number
-                sensor_id_int = int(sensor_id_str[1:])
-            except (ValueError, IndexError):
-                sensor_id_int = 0  # Default on parsing error
-
-            if sensor_data["type"] == "MOTION":
-                sensor_obj = CustomMotionDetector(
-                    location=sensor_data.get("location", "Unknown"),
-                    sensor_id=sensor_id_int,
-                )
-            else:  # 'WINDOW' or 'DOOR'
-                sensor_obj = CustomWinDoorSensor(
-                    location=sensor_data.get("location", "Unknown"),
-                    sensor_id=sensor_id_int,
-                    sensor_subtype=sensor_data.get("type", "window").lower(),
-                )
-
-            if sensor_data.get("armed"):
-                sensor_obj.arm()
-
-            self._sensors.append(sensor_obj)
+        # Sensor controller + metadata
+        self.sensor_controller = SensorController()
+        self._sensor_lookup: Dict[str, int] = {}
+        self._sensor_metadata: Dict[str, Dict[str, Any]] = {}
+        self._sensors: List[Union[WindowDoorSensor, MotionSensor]] = []
+        self._initialize_sensors()
 
         self.camera_controller = CameraController()
+        self._camera_lookup: Dict[str, int] = {}
+        self._camera_labels: Dict[int, str] = {}
+        self._initialize_cameras()
         self._zones = [
             {
                 "id": z["id"],
@@ -192,6 +193,16 @@ class System:
             self._lock_time = datetime.now()
         return {"success": False, "attempts_remaining": self._attempts}
 
+    def _cmd_web_login(
+        self, user_id="", password="", password1="", password2="", **kw
+    ) -> Dict:
+        """Backward-compatible alias used by legacy interfaces."""
+        if not password1 and not password2 and password:
+            password1 = password2 = password
+        return self._cmd_login_web(
+            user_id=user_id, password1=password1, password2=password2
+        )
+
     def _cmd_logout(self, **kw) -> Dict:
         """Logout current user."""
         self._user = None
@@ -203,25 +214,31 @@ class System:
         v = value.strip()
         if not v:
             return {"success": False, "message": "Please enter address or phone number"}
-        
+
         # Remove common formatting characters
         cleaned = v.replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
-        
+
         # Check if it's all digits (phone number) - must be at least 10 digits
         if cleaned.isdigit():
             if len(cleaned) >= 10:
                 self._verified = True
                 return {"success": True}
             else:
-                return {"success": False, "message": "Phone number must be at least 10 digits"}
-        
+                return {
+                    "success": False,
+                    "message": "Phone number must be at least 10 digits",
+                }
+
         # Check if it's an address (contains letters and numbers/address components)
         # Address should have at least 5 characters and contain letters
         if len(v) >= 5 and any(c.isalpha() for c in v):
             self._verified = True
             return {"success": True}
-        
-        return {"success": False, "message": "Invalid verification. Enter a valid phone number (10+ digits) or address (5+ chars with letters)"}
+
+        return {
+            "success": False,
+            "message": "Invalid verification. Enter a valid phone number (10+ digits) or address (5+ chars with letters)",
+        }
 
     def _cmd_is_verified(self, **kw) -> Dict:
         """Check if user identity is verified."""
@@ -256,6 +273,10 @@ class System:
 
     def _cmd_get_status(self, **kw) -> Dict:
         """Get current system status."""
+        sensor_states = self._collect_sensor_statuses()
+        active_sensors = sum(1 for s in sensor_states if s.get("armed"))
+        camera_states = self.camera_controller.get_all_camera_info()
+        enabled_cameras = sum(1 for c in camera_states if c.get("enabled"))
         return {
             "success": True,
             "data": {
@@ -264,6 +285,11 @@ class System:
                 "armed": self._mode != self.MODE_DISARMED,
                 "user": self._user,
                 "verified": self._verified,
+                "alarm_active": self._state == "ALARM",
+                "sensor_count": len(sensor_states),
+                "active_sensors": active_sensors,
+                "camera_count": len(camera_states),
+                "enabled_cameras": enabled_cameras,
             },
         }
 
@@ -278,22 +304,25 @@ class System:
             }
 
         # Check if all doors/windows are closed
-        for s in self._sensors:
-            if isinstance(s, CustomWinDoorSensor) and not s.can_arm():
+        for sensor_id, metadata in self._sensor_metadata.items():
+            if metadata.get("type") not in {"WINDOW", "DOOR"}:
+                continue
+            sensor = self._get_sensor_obj_by_id(sensor_id)
+            if sensor and hasattr(sensor, "can_arm") and not sensor.can_arm():
+                location = (
+                    metadata.get("location")
+                    or getattr(sensor, "get_location", lambda: sensor_id)()
+                )
                 return {
                     "success": False,
-                    "message": f"Cannot arm. {s.get_location()} is open.",
+                    "message": f"Cannot arm. {location} is open.",
                 }
 
         self._mode = mode
         # Arm sensors based on mode configuration
-        active_sensors = self._mode_configs.get(mode, [])
-        for s in self._sensors:
-            s_id_str = f"{'M' if isinstance(s, CustomMotionDetector) else 'S'}{s.get_sensor_id()}"
-            if s_id_str in active_sensors:
-                s.arm()
-            else:
-                s.disarm()
+        active_sensors = set(self._mode_configs.get(mode, []))
+        for sensor_id in self._sensor_lookup.keys():
+            self._set_sensor_armed(sensor_id, sensor_id in active_sensors)
 
         self._add_log("ARM", f"System armed: {mode}")
         return {"success": True, "mode": mode}
@@ -373,65 +402,173 @@ class System:
         return {"success": False, "message": "Zone not found"}
 
     # ========== Sensors ==========
+    def _initialize_sensors(self):
+        sensors: List[Union[WindowDoorSensor, MotionSensor]] = []
+        for sensor_data in SENSORS:
+            sensor_id = sensor_data.get("id")
+            if not sensor_id:
+                continue
+
+            coords = SENSOR_COORDS.get(sensor_id, (0, 0))
+            sensor_type = (
+                SensorController.SENSOR_TYPE_MOTION
+                if sensor_data.get("type") == "MOTION"
+                else SensorController.SENSOR_TYPE_WINDOW_DOOR
+            )
+            added = self.sensor_controller.addSensor(coords[0], coords[1], sensor_type)
+            if not added:
+                continue
+
+            controller_id = self.sensor_controller.nextSensorID - 1
+            sensor_obj = self.sensor_controller.getSensor(controller_id)
+            display_name = (
+                sensor_data.get("name") or sensor_data.get("location") or sensor_id
+            )
+            category = sensor_data.get("type", "").lower()
+            extra = {"label": sensor_data.get("location")}
+            if hasattr(sensor_obj, "set_metadata"):
+                sensor_obj.set_metadata(
+                    friendly_id=sensor_id,
+                    location_name=display_name,
+                    category=category,
+                    extra=extra,
+                )
+            else:  # Fallback (older sensor implementations)
+                setattr(sensor_obj, "friendly_id", sensor_id)
+                setattr(sensor_obj, "location_name", display_name)
+            self._sensor_lookup[sensor_id] = controller_id
+            self._sensor_metadata[sensor_id] = sensor_data
+
+            if sensor_data.get("armed"):
+                sensor_obj.arm()
+            else:
+                sensor_obj.disarm()
+
+            sensors.append(sensor_obj)
+
+        self._sensors = sensors
+
+    def _initialize_cameras(self):
+        """Instantiate default cameras for surveillance functions."""
+        for cam_data in CAMERAS:
+            cam_name = cam_data.get("id")
+            if not cam_name:
+                continue
+            x_coord = int(cam_data.get("x", 0))
+            y_coord = int(cam_data.get("y", 0))
+            controller_id = self.camera_controller.add_camera(x_coord, y_coord)
+            if controller_id is None:
+                continue
+            label = cam_data.get("location", cam_name)
+            self._camera_lookup[cam_name] = controller_id
+            self._camera_labels[controller_id] = label
+            camera = self.camera_controller.get_camera_by_id(controller_id)
+            if camera:
+                camera.enable()
+
+    def _collect_sensor_statuses(self) -> List[Dict[str, Any]]:
+        """Return sensor statuses sorted by ID for UI queries."""
+        statuses: List[Dict[str, Any]] = []
+        for sensor_id in sorted(self._sensor_lookup.keys()):
+            sensor = self._get_sensor_obj_by_id(sensor_id)
+            if not sensor:
+                continue
+            status = sensor.get_status()
+            status.setdefault("id", sensor_id)
+            if "name" not in status:
+                try:
+                    status["name"] = sensor.get_location()
+                except Exception:
+                    status["name"] = sensor_id
+            statuses.append(status)
+        return statuses
+
     def _get_sensor_obj_by_id(self, sensor_id: str):
         """Find a sensor object by its string ID (e.g., 'S1', 'M2')."""
-        for s in self._sensors:
-            # The custom sensor 'id' is an int, so need to construct the string id
-            prefix = "M" if isinstance(s, CustomMotionDetector) else "S"
-            if f"{prefix}{s.get_sensor_id()}" == sensor_id:
-                return s
-        return None
+        internal_id = self._sensor_lookup.get(sensor_id)
+        if internal_id is None:
+            return None
+        return self.sensor_controller.getSensor(internal_id)
 
     def _cmd_get_sensors(self, **kw) -> Dict:
         """Get all sensors."""
-        return {"success": True, "data": [s.get_status() for s in self._sensors]}
+        return {"success": True, "data": self._collect_sensor_statuses()}
 
     def _cmd_get_all_devices_status(self, **kw) -> Dict:
         """Get status of all devices (sensors and cameras) for floorplan display."""
-        devices = {}
-        
-        # Add all sensors
-        for s in self._sensors:
-            status = s.get_status()
+        devices: Dict[str, Dict[str, Any]] = {}
+
+        for status in self._collect_sensor_statuses():
             dev_id = status.get("id", "Unknown")
             devices[dev_id] = {
-                "type": "sensor",
+                "type": status.get("type", "sensor"),
                 "armed": status.get("armed", False),
                 "location": status.get("location", "Unknown"),
                 "status": status.get("status", "closed"),
+                "name": status.get("name", dev_id),
             }
-        
-        # Add all cameras
-        for c in self._cameras:
-            status = c.get_status()
-            dev_id = status.get("id", "Unknown")
+
+        for cam in self.camera_controller.get_all_camera_info():
+            cam_id = cam.get("id", "Unknown")
+            dev_id = str(cam_id)
+            if isinstance(cam_id, int):
+                dev_id = f"C{cam_id}"
+            location = self._camera_labels.get(cam_id, cam.get("location", "Unknown"))
             devices[dev_id] = {
                 "type": "camera",
-                "armed": status.get("enabled", False),  # Use enabled as armed for cameras
-                "location": status.get("location", "Unknown"),
-                "enabled": status.get("enabled", False),
+                "armed": cam.get("enabled", False),
+                "location": location,
+                "enabled": cam.get("enabled", False),
             }
-        
+
         return {"success": True, "data": devices}
 
     def _cmd_arm_sensor(self, sensor_id="", **kw) -> Dict:
         """Arm individual sensor."""
-        self._set_sensor_armed(sensor_id, True)
+        if not self._set_sensor_armed(sensor_id, True):
+            return {"success": False, "message": "Sensor not found"}
         return {"success": True}
 
     def _cmd_disarm_sensor(self, sensor_id="", **kw) -> Dict:
         """Disarm individual sensor."""
-        self._set_sensor_armed(sensor_id, False)
+        if not self._set_sensor_armed(sensor_id, False):
+            return {"success": False, "message": "Sensor not found"}
         return {"success": True}
+
+    def _cmd_poll_sensors(self, **kw) -> Dict:
+        """Poll armed sensors to detect intrusions (legacy command)."""
+        if self._mode == self.MODE_DISARMED:
+            return {"success": True, "intrusion_detected": False}
+
+        for sensor_id in self._sensor_lookup.keys():
+            sensor = self._get_sensor_obj_by_id(sensor_id)
+            if not sensor:
+                continue
+            status = sensor.get_status()
+            if not status.get("armed"):
+                continue
+            triggered = bool(status.get("is_open")) or bool(status.get("triggered"))
+            if triggered:
+                alarm = self._cmd_trigger_alarm(sensor_id=sensor_id)
+                return {
+                    "success": True,
+                    "intrusion_detected": True,
+                    "sensor_id": sensor_id,
+                    "alarm": alarm,
+                }
+
+        return {"success": True, "intrusion_detected": False}
 
     def _set_sensor_armed(self, sensor_id: str, armed: bool):
         """Set sensor armed state."""
         sensor = self._get_sensor_obj_by_id(sensor_id)
-        if sensor:
-            if armed:
-                sensor.arm()
-            else:
-                sensor.disarm()
+        if not sensor:
+            return False
+        if armed:
+            sensor.arm()
+        else:
+            sensor.disarm()
+        return True
 
     # ========== Alarm Handling (SRS V.2.d) ==========
     def _cmd_trigger_alarm(self, sensor_id="", **kw) -> Dict:
@@ -472,7 +609,7 @@ class System:
         sensor_id = "Unknown"
         zone_name = "Unknown"
         alarm_type = "INTRUSION"
-        
+
         # If alarm is active, try to get sensor/zone info from recent log
         if is_alarm and self._logs:
             latest = self._logs[0]
@@ -487,7 +624,7 @@ class System:
                         # Extract sensor ID from format like "S1 (WINDOW @ DR Top)"
                         if "(" in sensor_part:
                             sensor_id = sensor_part.split("(")[0].strip()
-        
+
         return {
             "success": True,
             "data": {
@@ -508,6 +645,12 @@ class System:
     def _cmd_configure_safehome_mode(self, mode="", sensors=None, **kw) -> Dict:
         """Configure which sensors are active in a mode (SRS V.2.i)."""
         if mode and sensors is not None:
+            invalid = [sid for sid in sensors if sid not in self._sensor_lookup]
+            if invalid:
+                return {
+                    "success": False,
+                    "message": f"Unknown sensors: {', '.join(sorted(invalid))}",
+                }
             self._mode_configs[mode] = sensors
             return {"success": True}
         return {"success": False, "message": "Mode and sensors required"}
@@ -519,10 +662,24 @@ class System:
     # ========== Cameras (SRS V.3) ==========
     def _cmd_get_cameras(self, **kw) -> Dict:
         """Get all cameras."""
-        return {
-            "success": True,
-            "data": self.camera_controller.get_all_camera_info(),
-        }
+        cameras = []
+        for cam in self.camera_controller.get_all_camera_info():
+            cam_id = cam.get("id")
+            if cam_id is None:
+                continue
+            label = self._camera_labels.get(cam_id, f"C{cam_id}")
+            cameras.append(
+                {
+                    "id": f"C{cam_id}",
+                    "location": label,
+                    "coords": cam.get("location"),
+                    "enabled": cam.get("enabled", False),
+                    "pan": cam.get("pan"),
+                    "zoom": cam.get("zoom"),
+                    "has_password": cam.get("has_password"),
+                }
+            )
+        return {"success": True, "data": cameras}
 
     def _cmd_get_camera(self, camera_id="", **kw) -> Dict:
         """Get specific camera."""
@@ -534,9 +691,12 @@ class System:
         except CameraNotFoundError:
             return {"success": False, "message": "Camera not found"}
 
+        coords = camera.get_location()
+        label = self._camera_labels.get(cam_id, f"C{cam_id}")
         data = {
-            "id": camera.get_id(),
-            "location": camera.get_location(),
+            "id": f"C{camera.get_id()}",
+            "location": label,
+            "coords": coords,
             "enabled": camera.is_enabled(),
             "pan": camera.get_pan_angle(),
             "zoom": camera.get_zoom_level(),
@@ -597,6 +757,10 @@ class System:
             return {"success": True, "pan": pan_value}
         return {"success": False, "message": "Camera not found"}
 
+    def _cmd_pan_camera(self, **kw) -> Dict:
+        """Alias for legacy command naming."""
+        return self._cmd_camera_pan(**kw)
+
     def _cmd_camera_zoom(self, camera_id="", direction="", **kw) -> Dict:
         """Zoom camera in/out (SRS V.3.b)."""
         cam_id = self._normalize_camera_id(camera_id)
@@ -616,11 +780,15 @@ class System:
             return {"success": True, "zoom": zoom_value}
         return {"success": False, "message": "Camera not found"}
 
+    def _cmd_zoom_camera(self, **kw) -> Dict:
+        """Alias for legacy command naming."""
+        return self._cmd_camera_zoom(**kw)
+
     def _cmd_camera_tilt(self, camera_id="", direction="", **kw) -> Dict:
         """Tilt camera up/down (SRS V.3.b)."""
         cam = self._get_camera_obj_by_id(camera_id)
         if cam:
-            if hasattr(cam, 'tilt_up') and hasattr(cam, 'tilt_down'):
+            if hasattr(cam, "tilt_up") and hasattr(cam, "tilt_down"):
                 success = cam.tilt_up() if direction == "up" else cam.tilt_down()
                 return {"success": success, "tilt": cam.tilt_angle}
             else:
@@ -737,6 +905,10 @@ class System:
     def _cmd_get_intrusion_log(self, **kw) -> Dict:
         """Get intrusion/event log."""
         return {"success": True, "data": self._logs}
+
+    def _cmd_get_intrusion_logs(self, **kw) -> Dict:
+        """Alias for pluralized command name."""
+        return self._cmd_get_intrusion_log(**kw)
 
     def _add_log(self, event: str, detail: str):
         """Add entry to log."""
