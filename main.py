@@ -29,51 +29,62 @@ def main():
     print("=" * 60)
     print("SafeHome System")
     print("=" * 60)
-    
+
     system = System()
     print(f"[OK] System created (State: {system._state})")
-    
+
+    # Root is hidden; only Control Panel and Web Interface windows are shown.
     root = tk.Tk()
-    root.title("SafeHome Main Controller")
-    root.geometry("350x200")
-    root.configure(bg='#2c3e50')
-    
-    tk.Label(root, text="SafeHome System", font=('Arial', 18, 'bold'), fg='white', bg='#2c3e50').pack(pady=20)
-    tk.Label(root, text="Control Panel: Separate Window\nWeb Interface: Separate Window",
-             font=('Arial', 10), fg='#bdc3c7', bg='#2c3e50').pack(pady=10)
-    
+    root.withdraw()
+
+    windows = []
+    shutting_down = {"value": False}
+
     def quit_all():
+        """Shut down system and close all windows."""
+        if shutting_down["value"]:
+            return
+        shutting_down["value"] = True
         print("\n[INFO] Shutting down SafeHome...")
-        system.turn_off()
+        try:
+            system.turn_off()
+        except Exception as exc:  # pragma: no cover
+            print(f"[WARN] Failed to turn off cleanly: {exc}")
+        for win in list(windows):
+            if win.winfo_exists():
+                win.destroy()
         root.quit()
-        root.destroy()
-    
-    tk.Button(root, text="Quit All", command=quit_all, bg='#e74c3c', fg='white',
-              font=('Arial', 11, 'bold'), width=15).pack(pady=20)
-    
+
     try:
         control_panel = SafeHomeControlPanel(root, system)
         control_panel.title("SafeHome Control Panel")
+        control_panel.protocol("WM_DELETE_WINDOW", quit_all)
+        windows.append(control_panel)
         print("[OK] Control Panel created (OFF state - press 1 to start)")
-    except Exception as e:
+    except Exception as e:  # pragma: no cover
         print(f"[ERROR] Control Panel: {e}")
         import traceback
+
         traceback.print_exc()
-    
+
     try:
         system.turn_on()
         web_interface = WebInterface(system, root)
         web_interface.title("SafeHome Web Interface")
+        web_interface.protocol("WM_DELETE_WINDOW", quit_all)
+        windows.append(web_interface)
         print("[OK] Web Interface created")
-    except Exception as e:
+    except Exception as e:  # pragma: no cover
         print(f"[ERROR] Web Interface: {e}")
         import traceback
+
         traceback.print_exc()
-    
+
     print("\n" + "=" * 60)
     print("SafeHome Ready!")
     print("=" * 60)
-    print("""
+    print(
+        """
 CONTROL PANEL USAGE (SRS V.1):
   1. Press '1' (ON) to start the system
   2. Enter 4-digit password:
@@ -92,10 +103,14 @@ WEB INTERFACE USAGE (SRS V.1.b):
   - Password 1: password
   - Password 2: password
   - Verify identity with phone/address for security functions
-""")
+"""
+    )
     print("=" * 60)
-    
-    root.mainloop()
+
+    try:
+        root.mainloop()
+    finally:
+        root.destroy()
 
 
 if __name__ == "__main__":

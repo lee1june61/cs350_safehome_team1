@@ -1,8 +1,8 @@
 """SurveillancePage - Camera surveillance (SRS V.3)"""
 import tkinter as tk
 from tkinter import ttk
-from ..components.page import Page
-from ..components.floor_plan import FloorPlan
+from ...components.page import Page
+from ...components.floor_plan import FloorPlan
 
 
 class SurveillancePage(Page):
@@ -60,3 +60,4 @@ class SurveillancePage(Page):
             self._list.insert(tk.END, f"{st} {c['id']}: {c['location']} {lock}")
     
     def on_show(self): self._load()
+
