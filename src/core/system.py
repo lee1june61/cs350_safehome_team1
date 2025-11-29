@@ -26,7 +26,9 @@ from ..configuration import (
     SystemSettings,
     SafetyZone,
     SafeHomeMode,
+    LoginInterface,
 )
+from ..configuration.password_utils import hash_password
 
 # Device data matching floorplan.png (C=Camera, S=Sensor, M=Motion)
 SENSORS = [
@@ -134,23 +136,64 @@ class System:
     # ========== Configuration Sync Helpers ==========
     def _initialize_default_users(self):
         """Create default users if they don't exist."""
+        from datetime import datetime
+
         # Check if master user exists
         existing = self._storage.get_login_interface("master", "control_panel")
         if not existing:
-            # Create master user with default password "password1" (8+ chars with digit)
-            master = LoginInterface(
-                "master", "password1", "control_panel", AccessLevel.MASTER_ACCESS
-            )
-            self._storage.save_login_interface(master.to_dict())
+            # Create master user with 4-digit password "1234" for control panel
+            master_data = {
+                "username": "master",
+                "password_hash": hash_password("1234"),
+                "interface": "control_panel",
+                "access_level": int(AccessLevel.MASTER_ACCESS),
+                "login_attempts": 0,
+                "is_locked": False,
+                "password_min_length": 4,
+                "password_requires_digit": False,
+                "password_requires_special": False,
+                "created_at": datetime.utcnow().isoformat(),
+                "last_login": None,
+            }
+            self._storage.save_login_interface(master_data)
 
         # Check if guest user exists
         existing_guest = self._storage.get_login_interface("guest", "control_panel")
         if not existing_guest:
-            # Create guest user with default password "guest123" (8+ chars with digit)
-            guest = LoginInterface(
-                "guest", "guest123", "control_panel", AccessLevel.GUEST_ACCESS
-            )
-            self._storage.save_login_interface(guest.to_dict())
+            # Create guest user with 4-digit password "5678" for control panel
+            guest_data = {
+                "username": "guest",
+                "password_hash": hash_password("5678"),
+                "interface": "control_panel",
+                "access_level": int(AccessLevel.GUEST_ACCESS),
+                "login_attempts": 0,
+                "is_locked": False,
+                "password_min_length": 4,
+                "password_requires_digit": False,
+                "password_requires_special": False,
+                "created_at": datetime.utcnow().isoformat(),
+                "last_login": None,
+            }
+            self._storage.save_login_interface(guest_data)
+
+        # Check if admin user exists for web interface
+        existing_admin = self._storage.get_login_interface("admin", "web")
+        if not existing_admin:
+            # Create admin user with password "password" for web interface
+            admin_data = {
+                "username": "admin",
+                "password_hash": hash_password("password"),
+                "interface": "web",
+                "access_level": int(AccessLevel.MASTER_ACCESS),
+                "login_attempts": 0,
+                "is_locked": False,
+                "password_min_length": 4,
+                "password_requires_digit": False,
+                "password_requires_special": False,
+                "created_at": datetime.utcnow().isoformat(),
+                "last_login": None,
+            }
+            self._storage.save_login_interface(admin_data)
 
     def _sync_zones_from_config(self):
         """Load safety zones from configuration database."""

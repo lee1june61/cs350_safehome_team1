@@ -139,4 +139,3 @@ class CustomWinDoorSensor(BaseWinDoorSensor):
             f"CustomWinDoorSensor(id={self.sensor_id}, type={self._subtype}, "
             f"location='{self._location}', state={state}, status={status}{trigger})"
         )
-
