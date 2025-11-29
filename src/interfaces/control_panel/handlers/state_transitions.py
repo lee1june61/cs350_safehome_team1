@@ -60,11 +60,16 @@ class StateTransitions:
         if self._panel._password.try_login():
             self._panel._state = self._panel.STATE_LOGGED_IN
             self._panel._display.show_welcome(self._panel._password.access_level)
+            self._panel._display.cancel_lock_countdown()
             self._panel._update_leds()
         elif self._panel._password.is_locked_out():
             self._panel._state = self._panel.STATE_LOCKED
             self._panel._display.show_locked()
-            self._panel.after(60000, self._unlock)
+            duration_ms = self._panel._password.lock_time_ms
+            self._panel._display.start_lock_countdown(
+                self._panel._password.lock_time_seconds
+            )
+            self._panel.after(duration_ms, self._unlock)
         else:
             attempts = self._panel._password.get_remaining_attempts()
             self._panel._display.show_wrong_password(attempts)
@@ -73,6 +78,7 @@ class StateTransitions:
         """Unlock after timeout."""
         self._panel._password.unlock()
         self._panel._state = self._panel.STATE_IDLE
+        self._panel._display.cancel_lock_countdown()
         self._panel._display.show_idle()
 
     def start_pw_change(self):

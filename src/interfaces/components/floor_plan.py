@@ -149,5 +149,5 @@ class FloorPlan:
         return [
             d
             for d, (_, _, t) in DEVICES.items()
-            if t in ("sensor", "motion", "door_sensor")
+            if t in ("sensor", "motion")
         ]

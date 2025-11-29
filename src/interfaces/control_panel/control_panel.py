@@ -38,6 +38,7 @@ class SafeHomeControlPanel(ButtonMixin, DeviceControlPanelAbstract):
         self._transitions = StateTransitions(self)
         self._security = SecurityActions(self)
         self._display.init_off_display()
+        self._apply_security_policy()
 
     @property
     def is_off(self) -> bool:
@@ -70,6 +71,22 @@ class SafeHomeControlPanel(ButtonMixin, DeviceControlPanelAbstract):
 
     def handle_alarm_event(self, data: dict):
         self._alarm.handle_event(data)
+
+    def _apply_security_policy(self):
+        """Sync password attempts/lock duration with system settings."""
+        try:
+            res = self.send_request("get_system_settings")
+        except Exception:
+            return
+        if not isinstance(res, dict) or not res.get("success"):
+            return
+        data = res.get("data", {})
+        attempts = data.get("max_login_attempts")
+        lock_time = data.get("system_lock_time")
+        self._password.configure_policy(
+            max_attempts=int(attempts) if attempts else None,
+            lock_time_seconds=int(lock_time) if lock_time else None,
+        )
 
 
 def run_control_panel(system: "System", master=None) -> SafeHomeControlPanel:

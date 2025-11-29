@@ -28,3 +28,7 @@ class CameraController(
 
     def __init__(self) -> None:
         super().__init__()
+
+    def initialize(self) -> bool:
+        """Legacy initialization hook for compatibility tests."""
+        return True

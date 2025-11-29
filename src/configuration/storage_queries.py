@@ -24,23 +24,29 @@ class StorageQueries:
         self: "StorageManager", login_data: Dict[str, Any]
     ) -> bool:
         username, interface = login_data["username"], login_data["interface"]
+        pwd_min = int(login_data.get("password_min_length", 8))
+        pwd_digit = int(login_data.get("password_requires_digit", True))
+        pwd_special = int(login_data.get("password_requires_special", False))
         existing = self.get_login_interface(username, interface)
         if existing:
             self.execute_update(
-                """UPDATE login_interfaces SET password_hash=?, access_level=?, login_attempts=?, is_locked=?, last_login=? WHERE username=? AND interface=?""",
+                """UPDATE login_interfaces SET password_hash=?, access_level=?, login_attempts=?, is_locked=?, last_login=?, password_min_length=?, password_requires_digit=?, password_requires_special=? WHERE username=? AND interface=?""",
                 (
                     login_data["password_hash"],
                     login_data["access_level"],
                     login_data["login_attempts"],
                     login_data["is_locked"],
                     login_data.get("last_login"),
+                    pwd_min,
+                    pwd_digit,
+                    pwd_special,
                     username,
                     interface,
                 ),
             )
         else:
             self.execute_insert(
-                """INSERT INTO login_interfaces (username, password_hash, interface, access_level, login_attempts, is_locked, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                """INSERT INTO login_interfaces (username, password_hash, interface, access_level, login_attempts, is_locked, created_at, password_min_length, password_requires_digit, password_requires_special) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     username,
                     login_data["password_hash"],
@@ -49,6 +55,9 @@ class StorageQueries:
                     login_data["login_attempts"],
                     login_data["is_locked"],
                     login_data.get("created_at"),
+                    pwd_min,
+                    pwd_digit,
+                    pwd_special,
                 ),
             )
         return True
