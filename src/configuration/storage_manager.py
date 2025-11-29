@@ -1,11 +1,9 @@
 """StorageManager - Thread-safe singleton for SQLite access."""
 
 from __future__ import annotations
-
 import sqlite3
 import threading
 from typing import Any, Dict, List, Optional, Tuple
-
 from .exceptions import DatabaseError
 from .storage_schema import SCHEMA_SQL
 from .storage_queries import StorageQueries
@@ -27,7 +25,6 @@ class StorageManager(StorageQueries, StorageZoneLogQueries):
 
     @classmethod
     def get_instance(cls, db_path: str = ":memory:") -> "StorageManager":
-        """Get or create singleton instance."""
         return cls({"db_path": db_path})
 
     def __init__(self, db_config: Dict[str, Any]) -> None:
@@ -35,12 +32,13 @@ class StorageManager(StorageQueries, StorageZoneLogQueries):
             return
         self.db_path = db_config.get("db_path", ":memory:")
         self.connection: Optional[sqlite3.Connection] = None
-        self._connection_lock = threading.Lock()
-        self._in_transaction = False
-        self._initialized = True
+        self._connection_lock, self._in_transaction, self._initialized = (
+            threading.Lock(),
+            False,
+            True,
+        )
 
     def connect(self) -> bool:
-        """Establish database connection and initialize schema."""
         with self._connection_lock:
             if self.connection is not None:
                 return True
@@ -53,7 +51,6 @@ class StorageManager(StorageQueries, StorageZoneLogQueries):
                 raise DatabaseError(f"Failed to connect: {exc}") from exc
 
     def disconnect(self) -> bool:
-        """Close database connection."""
         with self._connection_lock:
             if self.connection:
                 if self._in_transaction:

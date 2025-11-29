@@ -42,18 +42,19 @@ class LoginInterface:
             interface,
             int(access_level),
         )
-        self.login_attempts, self.is_locked = 0, False
-        self.password_min_length, self.password_requires_digit = 8, True
-        self.password_requires_special, self.last_login = False, None
+        self.login_attempts, self.is_locked, self.last_login = 0, False, None
+        (
+            self.password_min_length,
+            self.password_requires_digit,
+            self.password_requires_special,
+        ) = (8, True, False)
         self.created_at, self.password_hash = datetime.utcnow(), ""
         self.set_password(password)
 
     def verify_password(self, password: str) -> bool:
-        """Check if password matches stored hash."""
         return self.password_hash == hash_password(password)
 
     def set_password(self, new_password: str) -> bool:
-        """Set new password after validation."""
         validate_password_policy(
             new_password,
             self.password_min_length,
@@ -85,14 +86,16 @@ class LoginInterface:
 
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "LoginInterface":
-        """Create LoginInterface from dictionary."""
         obj = object.__new__(LoginInterface)
-        obj.username = data["username"]
-        obj.password_hash = data["password_hash"]
-        obj.interface = data["interface"]
+        obj.username, obj.password_hash, obj.interface = (
+            data["username"],
+            data["password_hash"],
+            data["interface"],
+        )
         obj.access_level = int(data.get("access_level", AccessLevel.USER_ACCESS))
-        obj.login_attempts = int(data.get("login_attempts", 0))
-        obj.is_locked = bool(data.get("is_locked", False))
+        obj.login_attempts, obj.is_locked = int(data.get("login_attempts", 0)), bool(
+            data.get("is_locked", False)
+        )
         obj.password_min_length = int(data.get("password_min_length", 8))
         obj.password_requires_digit = bool(data.get("password_requires_digit", True))
         obj.password_requires_special = bool(
@@ -104,6 +107,9 @@ class LoginInterface:
             if isinstance(created, str)
             else datetime.utcnow()
         )
-        last = data.get("last_login")
-        obj.last_login = datetime.fromisoformat(last) if last else None
+        obj.last_login = (
+            datetime.fromisoformat(data["last_login"])
+            if data.get("last_login")
+            else None
+        )
         return obj

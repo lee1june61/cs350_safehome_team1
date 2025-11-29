@@ -1,9 +1,7 @@
 """ConfigurationManager - Facade for all configuration operations."""
 
 from __future__ import annotations
-
 from typing import List, Optional
-
 from .safehome_mode import SafeHomeMode
 from .safety_zone import SafetyZone
 from .storage_manager import StorageManager
@@ -17,8 +15,6 @@ class ConfigurationManager:
         self._storage_manager = storage_manager
 
     def initialize_configuration(self) -> bool:
-        """Initialize default configuration (modes, settings)."""
-        # Create default SafeHome modes
         default_modes = [
             SafeHomeMode(1, "Home", [], True, "Minimal sensors when home"),
             SafeHomeMode(2, "Away", [], True, "All sensors when away"),
@@ -27,24 +23,19 @@ class ConfigurationManager:
         ]
         for mode in default_modes:
             self._storage_manager.save_safehome_mode(mode.to_dict())
-
-        # Create default system settings
         settings = SystemSettings()
         settings.save_to_database(self._storage_manager)
         return True
 
     def get_system_settings(self) -> SystemSettings:
-        """Retrieve current system settings."""
         settings = SystemSettings()
         settings.load_from_database(self._storage_manager)
         return settings
 
     def update_system_settings(self, settings: SystemSettings) -> bool:
-        """Update system settings."""
         return settings.save_to_database(self._storage_manager)
 
     def get_safehome_mode(self, mode_id: int) -> Optional[SafeHomeMode]:
-        """Retrieve a specific SafeHome mode."""
         modes = self._storage_manager.get_safehome_modes()
         for mode_data in modes:
             if mode_data["mode_id"] == mode_id:
@@ -52,16 +43,13 @@ class ConfigurationManager:
         return None
 
     def get_all_safehome_modes(self) -> List[SafeHomeMode]:
-        """Retrieve all SafeHome modes."""
         modes = self._storage_manager.get_safehome_modes()
         return [SafeHomeMode.from_dict(m) for m in modes]
 
     def update_safehome_mode(self, mode: SafeHomeMode) -> bool:
-        """Update a SafeHome mode."""
         return self._storage_manager.save_safehome_mode(mode.to_dict())
 
     def get_safety_zone(self, zone_id: int) -> Optional[SafetyZone]:
-        """Retrieve a specific safety zone."""
         zones = self._storage_manager.get_safety_zones()
         for zone_data in zones:
             if zone_data["zone_id"] == zone_id:
@@ -69,18 +57,14 @@ class ConfigurationManager:
         return None
 
     def get_all_safety_zones(self) -> List[SafetyZone]:
-        """Retrieve all safety zones."""
         zones = self._storage_manager.get_safety_zones()
         return [SafetyZone.from_dict(z) for z in zones]
 
     def add_safety_zone(self, zone: SafetyZone) -> bool:
-        """Add a new safety zone."""
         return self._storage_manager.save_safety_zone(zone.to_dict())
 
     def update_safety_zone(self, zone: SafetyZone) -> bool:
-        """Update an existing safety zone."""
         return self._storage_manager.save_safety_zone(zone.to_dict())
 
     def delete_safety_zone(self, zone_id: int) -> bool:
-        """Delete a safety zone."""
         return self._storage_manager.delete_safety_zone(zone_id)
