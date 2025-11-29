@@ -148,4 +148,3 @@ class CustomMotionDetector(BaseMotionDetector):
             f"CustomMotionDetector(id={self.sensor_id}, location='{self._location}', "
             f"status={status}{trigger}, battery={int(self._battery_level)}%)"
         )
-
