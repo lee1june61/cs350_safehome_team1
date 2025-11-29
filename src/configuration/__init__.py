@@ -1,4 +1,4 @@
-"""SafeHome configuration and data management package.
+"""Configuration and Data Management module for SafeHome.
 
 This package contains the core configuration-related components:
 
@@ -22,31 +22,29 @@ from .exceptions import (
     AuthenticationError,
     ValidationError,
 )
-from .storage_manager import StorageManager
-from .configuration_manager import ConfigurationManager
 from .login_interface import LoginInterface, AccessLevel
 from .login_manager import LoginManager
-from .system_settings import SystemSettings
-from .safehome_mode import SafeHomeMode
-from .safety_zone import SafetyZone
 from .log import Log
 from .log_manager import LogManager
+from .safehome_mode import SafeHomeMode
+from .safety_zone import SafetyZone
+from .storage_manager import StorageManager
+from .system_settings import SystemSettings
+from .configuration_manager import ConfigurationManager
 
 __all__ = [
     "ConfigurationError",
     "DatabaseError",
     "AuthenticationError",
     "ValidationError",
-    "StorageManager",
-    "ConfigurationManager",
     "LoginInterface",
     "AccessLevel",
     "LoginManager",
-    "SystemSettings",
-    "SafeHomeMode",
-    "SafetyZone",
     "Log",
     "LogManager",
+    "SafeHomeMode",
+    "SafetyZone",
+    "StorageManager",
+    "SystemSettings",
+    "ConfigurationManager",
 ]
-
-
