@@ -17,6 +17,16 @@ from ..devices.sensors.sensor_controller import SensorController
 from ..devices.sensors.window_door_sensor import WindowDoorSensor
 from ..devices.sensors.motion_sensor import MotionSensor
 from ..utils.exceptions import CameraNotFoundError
+from ..configuration import (
+    StorageManager,
+    ConfigurationManager,
+    LoginManager,
+    LogManager,
+    AccessLevel,
+    SystemSettings,
+    SafetyZone,
+    SafeHomeMode,
+)
 
 # Device data matching floorplan.png (C=Camera, S=Sensor, M=Motion)
 SENSORS = [
@@ -75,21 +85,28 @@ class System:
     MODE_AWAY = "AWAY"
     MODE_DISARMED = "DISARMED"
 
-    def __init__(self):
+    def __init__(self, db_path: str = "safehome.db"):
         self._state = "OFF"  # OFF, READY, ALARM
         self._mode = self.MODE_DISARMED
         self._user: Optional[str] = None
         self._verified = False
+        self._access_level: Optional[int] = None
 
-        # Passwords (SRS V.1.c)
-        self._master_pw = "1234"  # 4 digits for control panel
-        self._guest_pw = "5678"  # 4 digits for control panel
-        self._web_pw1 = "password"  # 8+ chars for web
-        self._web_pw2 = "password"  # 8+ chars for web
+        # Initialize configuration subsystem
+        self._storage = StorageManager.get_instance(db_path)
+        self._storage.connect()
+        self._config_manager = ConfigurationManager(self._storage)
+        self._login_manager = LoginManager(self._storage)
+        self._log_manager = LogManager(self._storage)
 
-        # Settings (SRS V.1.c)
-        self._delay_time = 30  # seconds before calling monitor
-        self._monitor_phone = "911"
+        # Initialize configuration with defaults if needed
+        self._config_manager.initialize_configuration()
+        self._initialize_default_users()
+
+        # Load system settings
+        self._settings = self._config_manager.get_system_settings()
+        self._delay_time = self._settings.alarm_delay_time
+        self._monitor_phone = self._settings.monitoring_service_phone
 
         # Sensor controller + metadata
         self.sensor_controller = SensorController()
@@ -102,22 +119,75 @@ class System:
         self._camera_lookup: Dict[str, int] = {}
         self._camera_labels: Dict[int, str] = {}
         self._initialize_cameras()
-        self._zones = [
-            {
-                "id": z["id"],
-                "name": z["name"],
-                "sensors": z["sensors"][:],
-                "armed": False,
-            }
-            for z in SAFETY_ZONES
-        ]
-        self._mode_configs = {k: v[:] for k, v in MODE_CONFIGS.items()}
-        self._logs: List[Dict] = []
 
-        # Login state
+        # Load safety zones from configuration
+        self._sync_zones_from_config()
+
+        # Load mode configurations
+        self._sync_modes_from_config()
+
+        # Login state (kept for backward compatibility with lock mechanism)
         self._attempts = 3
         self._locked = False
         self._lock_time: Optional[datetime] = None
+
+    # ========== Configuration Sync Helpers ==========
+    def _initialize_default_users(self):
+        """Create default users if they don't exist."""
+        # Check if master user exists
+        existing = self._storage.get_login_interface("master", "control_panel")
+        if not existing:
+            # Create master user with default password "password1" (8+ chars with digit)
+            master = LoginInterface(
+                "master", "password1", "control_panel", AccessLevel.MASTER_ACCESS
+            )
+            self._storage.save_login_interface(master.to_dict())
+
+        # Check if guest user exists
+        existing_guest = self._storage.get_login_interface("guest", "control_panel")
+        if not existing_guest:
+            # Create guest user with default password "guest123" (8+ chars with digit)
+            guest = LoginInterface(
+                "guest", "guest123", "control_panel", AccessLevel.GUEST_ACCESS
+            )
+            self._storage.save_login_interface(guest.to_dict())
+
+    def _sync_zones_from_config(self):
+        """Load safety zones from configuration database."""
+        config_zones = self._config_manager.get_all_safety_zones()
+        if not config_zones:
+            # Initialize with default zones if none exist
+            for z in SAFETY_ZONES:
+                zone = SafetyZone(
+                    zone_id=0,
+                    zone_name=z["name"],
+                    sensor_ids=z["sensors"],
+                    is_armed=False,
+                )
+                self._config_manager.add_safety_zone(zone)
+            config_zones = self._config_manager.get_all_safety_zones()
+
+        self._zones = [
+            {
+                "id": z.zone_id,
+                "name": z.zone_name,
+                "sensors": z.sensor_ids[:],
+                "armed": z.is_armed,
+            }
+            for z in config_zones
+        ]
+
+    def _sync_modes_from_config(self):
+        """Load mode configurations from configuration database."""
+        config_modes = self._config_manager.get_all_safehome_modes()
+        self._mode_configs = {}
+        for mode in config_modes:
+            mode_name = mode.mode_name.upper()
+            self._mode_configs[mode_name] = mode.sensor_ids[:]
+
+        # Ensure default modes exist
+        if not self._mode_configs:
+            self._mode_configs = {k: v[:] for k, v in MODE_CONFIGS.items()}
 
     # ========== System Lifecycle ==========
     def turn_on(self):
@@ -129,6 +199,7 @@ class System:
         self._state = "OFF"
         self._user = None
         self._verified = False
+        self._access_level = None
         self._mode = self.MODE_DISARMED
         for s in self._sensors:
             s.disarm()
@@ -155,20 +226,33 @@ class System:
             return {"success": False, "locked": True, "message": "System locked"}
         return None
 
-    def _cmd_login_control_panel(self, password="", **kw) -> Dict:
-        """Login via control panel (4-digit password)."""
+    def _cmd_login_control_panel(self, password="", username="master", **kw) -> Dict:
+        """Login via control panel (4-digit password) - SRS V.1.a."""
         lock = self._check_lock()
         if lock:
             return lock
 
-        if password == self._master_pw:
-            self._user = "MASTER"
-            self._attempts = 3
-            return {"success": True, "access_level": "MASTER"}
-        if password == self._guest_pw:
-            self._user = "GUEST"
-            self._attempts = 3
-            return {"success": True, "access_level": "GUEST"}
+        try:
+            access_level = self._login_manager.login(
+                username, password, "control_panel"
+            )
+            if access_level is not None:
+                self._user = username
+                self._access_level = access_level
+                self._attempts = 3
+                level_name = (
+                    "MASTER" if access_level == AccessLevel.MASTER_ACCESS else "GUEST"
+                )
+                log = self._log_manager.create_log(
+                    "LOGIN", f"Control panel login: {username}", "INFO", username
+                )
+                self._log_manager.save_log(log)
+                return {"success": True, "access_level": level_name}
+        except Exception as e:
+            log = self._log_manager.create_log(
+                "LOGIN", f"Login failed: {str(e)}", "WARNING"
+            )
+            self._log_manager.save_log(log)
 
         self._attempts -= 1
         if self._attempts <= 0:
@@ -176,16 +260,33 @@ class System:
             self._lock_time = datetime.now()
         return {"success": False, "attempts_remaining": self._attempts}
 
-    def _cmd_login_web(self, user_id="", password1="", password2="", **kw) -> Dict:
-        """Login via web (user ID + two 8-char passwords)."""
+    def _cmd_login_web(
+        self, user_id="", password1="", password2="", password="", **kw
+    ) -> Dict:
+        """Login via web (user ID + password) - SRS V.1.b."""
         lock = self._check_lock()
         if lock:
             return lock
 
-        if user_id and password1 == self._web_pw1 and password2 == self._web_pw2:
-            self._user = user_id
-            self._attempts = 3
-            return {"success": True}
+        # Use single password if provided, otherwise use password1
+        pwd = password or password1
+
+        try:
+            access_level = self._login_manager.login(user_id, pwd, "web")
+            if access_level is not None:
+                self._user = user_id
+                self._access_level = access_level
+                self._attempts = 3
+                log = self._log_manager.create_log(
+                    "LOGIN", f"Web login: {user_id}", "INFO", user_id
+                )
+                self._log_manager.save_log(log)
+                return {"success": True}
+        except Exception as e:
+            log = self._log_manager.create_log(
+                "LOGIN", f"Web login failed: {str(e)}", "WARNING"
+            )
+            self._log_manager.save_log(log)
 
         self._attempts -= 1
         if self._attempts <= 0:
@@ -204,8 +305,15 @@ class System:
         )
 
     def _cmd_logout(self, **kw) -> Dict:
-        """Logout current user."""
+        """Logout current user - SRS V.1.a."""
+        if self._user:
+            log = self._log_manager.create_log(
+                "LOGOUT", f"User logged out: {self._user}", "INFO", self._user
+            )
+            self._log_manager.save_log(log)
+        self._login_manager.logout()
         self._user = None
+        self._access_level = None
         self._verified = False
         return {"success": True}
 
@@ -244,14 +352,35 @@ class System:
         """Check if user identity is verified."""
         return {"success": True, "verified": self._verified}
 
-    def _cmd_change_password(self, current_password="", new_password="", **kw) -> Dict:
-        """Change master password (SRS V.1.g)."""
-        if current_password != self._master_pw:
-            return {"success": False, "message": "Current password incorrect"}
-        if new_password and len(new_password) == 4 and new_password.isdigit():
-            self._master_pw = new_password
-            return {"success": True}
-        return {"success": False, "message": "New password must be 4 digits"}
+    def _cmd_change_password(
+        self,
+        current_password="",
+        new_password="",
+        username="master",
+        interface="control_panel",
+        **kw,
+    ) -> Dict:
+        """Change password (SRS V.1.g)."""
+        if not self._user:
+            return {"success": False, "message": "Must be logged in"}
+
+        try:
+            success = self._login_manager.change_password(
+                username, current_password, new_password, interface
+            )
+            if success:
+                log = self._log_manager.create_log(
+                    "CONFIGURATION",
+                    f"Password changed for {username}",
+                    "INFO",
+                    self._user,
+                )
+                self._log_manager.save_log(log)
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+
+        return {"success": False, "message": "Password change failed"}
 
     # ========== System Lifecycle Commands ==========
     def _cmd_turn_on(self, **kw) -> Dict:
@@ -374,32 +503,67 @@ class System:
         """Create new safety zone (SRS V.2.f)."""
         if not name:
             return {"success": False, "message": "Zone name required"}
-        new_id = max((z["id"] for z in self._zones), default=0) + 1
-        self._zones.append(
-            {"id": new_id, "name": name, "sensors": sensors or [], "armed": False}
+
+        zone = SafetyZone(
+            zone_id=0, zone_name=name, sensor_ids=sensors or [], is_armed=False
         )
-        return {"success": True, "zone_id": new_id}
+        success = self._config_manager.add_safety_zone(zone)
+        if success:
+            self._sync_zones_from_config()
+            log = self._log_manager.create_log(
+                "CONFIGURATION", f"Safety zone created: {name}", "INFO", self._user
+            )
+            self._log_manager.save_log(log)
+            # Find the newly created zone ID
+            for z in self._zones:
+                if z["name"] == name:
+                    return {"success": True, "zone_id": z["id"]}
+        return {"success": False, "message": "Failed to create zone"}
 
     def _cmd_update_safety_zone(
         self, zone_id=None, name=None, sensors=None, **kw
     ) -> Dict:
         """Update existing safety zone (SRS V.2.h)."""
-        for z in self._zones:
-            if z["id"] == zone_id:
-                if name is not None:
-                    z["name"] = name
-                if sensors is not None:
-                    z["sensors"] = sensors
-                return {"success": True}
-        return {"success": False, "message": "Zone not found"}
+        zone = self._config_manager.get_safety_zone(zone_id)
+        if not zone:
+            return {"success": False, "message": "Zone not found"}
+
+        if name is not None:
+            zone.zone_name = name
+        if sensors is not None:
+            zone.sensor_ids = sensors
+
+        success = self._config_manager.update_safety_zone(zone)
+        if success:
+            self._sync_zones_from_config()
+            log = self._log_manager.create_log(
+                "CONFIGURATION",
+                f"Safety zone updated: {zone.zone_name}",
+                "INFO",
+                self._user,
+            )
+            self._log_manager.save_log(log)
+            return {"success": True}
+        return {"success": False, "message": "Failed to update zone"}
 
     def _cmd_delete_safety_zone(self, zone_id=None, **kw) -> Dict:
         """Delete safety zone (SRS V.2.g)."""
-        original_len = len(self._zones)
-        self._zones = [z for z in self._zones if z["id"] != zone_id]
-        if len(self._zones) < original_len:
+        zone = self._config_manager.get_safety_zone(zone_id)
+        if not zone:
+            return {"success": False, "message": "Zone not found"}
+
+        success = self._config_manager.delete_safety_zone(zone_id)
+        if success:
+            self._sync_zones_from_config()
+            log = self._log_manager.create_log(
+                "CONFIGURATION",
+                f"Safety zone deleted: {zone.zone_name}",
+                "INFO",
+                self._user,
+            )
+            self._log_manager.save_log(log)
             return {"success": True}
-        return {"success": False, "message": "Zone not found"}
+        return {"success": False, "message": "Failed to delete zone"}
 
     # ========== Sensors ==========
     def _initialize_sensors(self):
@@ -644,16 +808,36 @@ class System:
 
     def _cmd_configure_safehome_mode(self, mode="", sensors=None, **kw) -> Dict:
         """Configure which sensors are active in a mode (SRS V.2.i)."""
-        if mode and sensors is not None:
-            invalid = [sid for sid in sensors if sid not in self._sensor_lookup]
-            if invalid:
-                return {
-                    "success": False,
-                    "message": f"Unknown sensors: {', '.join(sorted(invalid))}",
-                }
-            self._mode_configs[mode] = sensors
-            return {"success": True}
-        return {"success": False, "message": "Mode and sensors required"}
+        if not mode or sensors is None:
+            return {"success": False, "message": "Mode and sensors required"}
+
+        invalid = [sid for sid in sensors if sid not in self._sensor_lookup]
+        if invalid:
+            return {
+                "success": False,
+                "message": f"Unknown sensors: {', '.join(sorted(invalid))}",
+            }
+
+        # Find mode by name
+        mode_name = mode.upper()
+        modes = self._config_manager.get_all_safehome_modes()
+        for m in modes:
+            if m.mode_name.upper() == mode_name:
+                m.sensor_ids = sensors
+                success = self._config_manager.update_safehome_mode(m)
+                if success:
+                    self._sync_modes_from_config()
+                    log = self._log_manager.create_log(
+                        "CONFIGURATION",
+                        f"Mode configured: {mode_name}",
+                        "INFO",
+                        self._user,
+                    )
+                    self._log_manager.save_log(log)
+                    return {"success": True}
+                return {"success": False, "message": "Failed to update mode"}
+
+        return {"success": False, "message": "Mode not found"}
 
     def _cmd_get_all_modes(self, **kw) -> Dict:
         """Get all mode configurations."""
@@ -867,12 +1051,17 @@ class System:
 
     # ========== System Settings (SRS V.1.c) ==========
     def _cmd_get_system_settings(self, **kw) -> Dict:
-        """Get current system settings."""
+        """Get current system settings - SRS V.1.c."""
+        settings = self._config_manager.get_system_settings()
         return {
             "success": True,
             "data": {
-                "delay_time": self._delay_time,
-                "monitor_phone": self._monitor_phone,
+                "delay_time": settings.alarm_delay_time,
+                "monitor_phone": settings.monitoring_service_phone,
+                "homeowner_phone": settings.homeowner_phone,
+                "system_lock_time": settings.system_lock_time,
+                "max_login_attempts": settings.max_login_attempts,
+                "session_timeout": settings.session_timeout,
             },
         }
 
@@ -880,46 +1069,66 @@ class System:
         self,
         delay_time=None,
         monitor_phone=None,
-        web_password1=None,
-        web_password2=None,
-        master_password=None,
-        guest_password=None,
+        homeowner_phone=None,
+        system_lock_time=None,
+        max_login_attempts=None,
+        session_timeout=None,
         **kw,
     ) -> Dict:
         """Configure system settings (SRS V.1.c)."""
+        settings = self._config_manager.get_system_settings()
+
         if delay_time is not None:
+            settings.alarm_delay_time = delay_time
             self._delay_time = delay_time
-        if monitor_phone:
+        if monitor_phone is not None:
+            settings.monitoring_service_phone = monitor_phone
             self._monitor_phone = monitor_phone
-        if web_password1:
-            self._web_pw1 = web_password1
-        if web_password2:
-            self._web_pw2 = web_password2
-        if master_password:
-            self._master_pw = master_password
-        if guest_password is not None:  # Can be empty string to clear
-            self._guest_pw = guest_password if guest_password else ""
-        return {"success": True}
+        if homeowner_phone is not None:
+            settings.homeowner_phone = homeowner_phone
+        if system_lock_time is not None:
+            settings.system_lock_time = system_lock_time
+        if max_login_attempts is not None:
+            settings.max_login_attempts = max_login_attempts
+        if session_timeout is not None:
+            settings.session_timeout = session_timeout
+
+        try:
+            success = self._config_manager.update_system_settings(settings)
+            if success:
+                log = self._log_manager.create_log(
+                    "CONFIGURATION", "System settings updated", "INFO", self._user
+                )
+                self._log_manager.save_log(log)
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+
+        return {"success": False, "message": "Failed to update settings"}
 
     # ========== Intrusion Log (SRS V.2.j) ==========
     def _cmd_get_intrusion_log(self, **kw) -> Dict:
         """Get intrusion/event log."""
-        return {"success": True, "data": self._logs}
+        logs = self._log_manager.get_logs(limit=100)
+        log_data = [
+            {
+                "timestamp": (
+                    log.timestamp.strftime("%Y-%m-%d %H:%M:%S") if log.timestamp else ""
+                ),
+                "event": log.event_type,
+                "detail": log.description,
+                "severity": log.severity,
+            }
+            for log in logs
+        ]
+        return {"success": True, "data": log_data}
 
     def _cmd_get_intrusion_logs(self, **kw) -> Dict:
         """Alias for pluralized command name."""
         return self._cmd_get_intrusion_log(**kw)
 
     def _add_log(self, event: str, detail: str):
-        """Add entry to log."""
-        self._logs.insert(
-            0,
-            {
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "event": event,
-                "detail": detail,
-            },
-        )
-        # Keep last 100 entries
-        if len(self._logs) > 100:
-            self._logs = self._logs[:100]
+        """Add entry to log - uses LogManager."""
+        severity = "ERROR" if event in ("INTRUSION", "PANIC", "ALARM") else "INFO"
+        log = self._log_manager.create_log(event, detail, severity, self._user)
+        self._log_manager.save_log(log)
