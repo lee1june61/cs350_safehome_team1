@@ -22,7 +22,7 @@ class CameraService:
         self._camera_labels: Dict[int, str] = {}
         self._query = CameraQueryService(controller, self._camera_labels)
         self._control = CameraControlService(controller)
-        self._security = CameraSecurityService(controller)
+        self._security = CameraSecurityService(controller, self._camera_labels)
 
     # ------------------------------------------------------------------ #
     def initialize_defaults(self, camera_data: List[Dict]):

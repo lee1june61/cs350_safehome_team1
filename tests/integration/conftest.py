@@ -4,12 +4,18 @@ Based on SafeHome_Integration_Test_Cases.md
 """
 import pytest
 from src.core.system import System
+from src.configuration.storage_manager import StorageManager
 
 
 @pytest.fixture
-def system():
+def system(tmp_path):
     """Create a fresh System instance for each test."""
-    return System()
+    StorageManager._instance = None  # type: ignore[attr-defined]
+    db_path = tmp_path / "integration_safehome.db"
+    system = System(str(db_path))
+    yield system
+    if hasattr(system, "_storage"):
+        system._storage.disconnect()
 
 
 @pytest.fixture

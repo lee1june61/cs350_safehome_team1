@@ -44,6 +44,8 @@ class SettingsHandler:
         system_lock_time: Optional[int] = None,
         max_login_attempts: Optional[int] = None,
         session_timeout: Optional[int] = None,
+        master_password: Optional[str] = None,
+        guest_password: Optional[str] = None,
         **_,
     ):
         result = self._settings_service.update_settings(
@@ -64,6 +66,13 @@ class SettingsHandler:
                 max_attempts=settings.max_login_attempts or 3,
                 lock_duration=settings.system_lock_time or 60,
             )
+            self._auth_service.set_identity_contact(
+                settings.monitoring_service_phone
+            )
+            if master_password or guest_password:
+                self._auth_service.update_control_panel_passwords(
+                    master_password=master_password, guest_password=guest_password
+                )
         return result
 
 

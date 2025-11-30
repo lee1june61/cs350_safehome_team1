@@ -9,6 +9,10 @@ class ButtonMixin:
             self._password.add_digit(d, self._transitions.try_login)
         elif self._state == self.STATE_CHANGING_PW:
             self._password.add_new_digit(d, self._transitions.finish_pw_change)
+        elif self._state == self.STATE_PANIC_VERIFY:
+            if getattr(self, "_panic_locked", False):
+                return
+            self._password.add_digit(d, self._security.handle_panic_code)
 
     def button1(self):
         if self._state == self.STATE_OFF:
@@ -45,7 +49,7 @@ class ButtonMixin:
 
     def button8(self):
         if self._state == self.STATE_LOGGED_IN:
-            self._security.disarm()
+            self._security.arm_home()
         else:
             self._digit("8")
 

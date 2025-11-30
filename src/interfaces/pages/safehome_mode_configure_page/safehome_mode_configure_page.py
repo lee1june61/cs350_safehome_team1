@@ -26,38 +26,31 @@ class SafeHomeModeConfigurePage(Page):
         self._mode_var = tk.StringVar(value='HOME')
 
         # Create right panel (mode selection and controls)
-        self._mode_desc, self._sensor_list = create_right_panel(
+        self._mode_desc = create_right_panel(
             content,
             self._mode_var,
-            load_mode_callback=self._load_mode,
-            save_mode_callback=self._save_mode,
-            reset_mode_callback=self._reset_mode,
-            select_all_callback=self._select_all,
-            clear_all_callback=self._clear_all,
+            mode_change_callback=self._on_mode_selected,
+            edit_mode_callback=self._edit_mode,
         )
 
         # Initialize manager
         self._manager = ModeConfigManager(
-            self, self._floorplan, self._sel_info,
-            self._mode_var, self._mode_desc, self._sensor_list)
+            self,
+            self._floorplan,
+            self._sel_info,
+            self._mode_var,
+            self._mode_desc,
+            None,
+        )
 
-    def _on_sensor_click(self, dev_id: str, dev_type: str):
+    def _on_sensor_click(self, dev_id: str, dev_type: str, _selected: bool = False):
         self._manager.on_sensor_click(dev_id, dev_type)
 
-    def _load_mode(self):
-        self._manager.load_mode()
+    def _on_mode_selected(self, mode: str):
+        self._manager.handle_mode_change(mode)
 
-    def _save_mode(self):
-        self._manager.save_mode()
-
-    def _reset_mode(self):
-        self._manager.reset_mode()
-
-    def _select_all(self):
-        self._manager.select_all()
-
-    def _clear_all(self):
-        self._manager.clear_all()
+    def _edit_mode(self):
+        self._manager.begin_edit_mode()
 
     def on_show(self):
         self._manager.on_show()

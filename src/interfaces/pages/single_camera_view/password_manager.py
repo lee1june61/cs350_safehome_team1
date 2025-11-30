@@ -35,6 +35,7 @@ class CameraPasswordManager(CameraLockManager):
             messagebox.showinfo("Success", "Password set")
             self.reset_attempts()
             self._page._update_info()
+            self._page.blank_video("Password set.\nCamera locked.", pause_feed=True)
         else:
             self.handle_failure()
 

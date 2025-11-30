@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Set, List, Dict, Any, TYPE_CHECKING
 
+from ...utils import sensor_display_name
+
 if TYPE_CHECKING:
     from ...components.floor_plan import FloorPlan
 
@@ -29,7 +31,11 @@ class ZoneUIUpdater:
 
     def update_selection_info(self):
         selected = self.floorplan.get_selected()
-        text = f"Selected sensors: {', '.join(sorted(selected))}" if selected else "Selected sensors: None"
+        if selected:
+            labels = [sensor_display_name(sid) for sid in sorted(selected)]
+            text = f"Selected sensors: {', '.join(labels)}"
+        else:
+            text = "Selected sensors: None"
         self.sel_info_label.config(text=text)
 
     def update_status_label(self, message: str, is_error: bool = False):

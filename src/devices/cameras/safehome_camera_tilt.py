@@ -42,3 +42,7 @@ class SafeHomeCameraTiltMixin(SafeHomeCameraBase):
                 return True
             return False
 
+    def get_tilt_angle(self) -> int:
+        with self._lock:
+            return self.tilt_angle
+

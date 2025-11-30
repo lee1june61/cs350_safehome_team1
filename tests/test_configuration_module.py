@@ -76,12 +76,23 @@ def test_system_settings_validation_failure():
         monitoring_service_phone="bad-phone",
         homeowner_phone="+12345678901",
         system_lock_time=10,  # too small
-        alarm_delay_time=5,  # too small
+        alarm_delay_time=4,  # too small
     )
     assert settings.validate_settings() is False
     with pytest.raises(ValidationError):
         # Saving invalid settings should raise.
         settings.save_to_database(StorageManager({"db_path": ":memory:"}))
+
+
+def test_system_settings_allows_emergency_phone(storage_manager):
+    """Emergency numbers should be accepted for monitoring phone."""
+    settings = SystemSettings(
+        monitoring_service_phone="911",
+        homeowner_phone="+12345678901",
+        alarm_delay_time=5,
+    )
+    assert settings.validate_settings() is True
+    settings.save_to_database(storage_manager)
 
 
 def test_login_interface_password_policy_and_hashing():

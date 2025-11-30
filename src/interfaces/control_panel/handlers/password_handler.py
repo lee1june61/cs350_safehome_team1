@@ -48,6 +48,14 @@ class PasswordHandler:
         self._access_level = None
         self._attempts = self._max_attempts
 
+    def clear_buffer(self):
+        self._pw_buffer = ""
+
+    def consume_buffer(self) -> str:
+        buf = self._pw_buffer
+        self._pw_buffer = ""
+        return buf
+
     def add_digit(self, digit: str, on_complete: Callable[[], None]):
         """Add digit to password buffer."""
         self._pw_buffer += digit
@@ -64,8 +72,8 @@ class PasswordHandler:
 
     def try_login(self) -> bool:
         """Attempt login. Returns True if successful."""
-        res = self._panel.send_request("login_control_panel", password=self._pw_buffer)
-        self._pw_buffer = ""
+        code = self.consume_buffer()
+        res = self._panel.send_request("login_control_panel", password=code)
 
         if res.get("success"):
             self._access_level = res.get("access_level", "GUEST")
@@ -96,4 +104,13 @@ class PasswordHandler:
         """Complete password change."""
         self._panel.send_request("change_password", new_password=self._new_pw_buffer)
         self._new_pw_buffer = ""
+
+    def verify_master_code(self):
+        """Verify current buffer against master password without logging in."""
+        code = self.consume_buffer()
+        if not code:
+            return {"success": False, "message": "Enter password"}
+        return self._panel.send_request(
+            "verify_control_panel_password", password=code
+        )
 
