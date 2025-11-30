@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from ...configuration import ConfigurationManager, SystemSettings
+from ...configuration import ConfigurationManager, SystemSettings, ValidationError
 from ..logging.system_logger import SystemLogger
 
 
@@ -41,7 +41,10 @@ class SettingsService:
         if session_timeout is not None:
             self._settings.session_timeout = session_timeout
 
-        success = self._config_manager.update_system_settings(self._settings)
+        try:
+            success = self._config_manager.update_system_settings(self._settings)
+        except ValidationError as exc:
+            return {"success": False, "message": str(exc)}
         if success:
             self._logger.add_event(
                 "CONFIGURATION", "System settings updated", user=user

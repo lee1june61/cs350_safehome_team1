@@ -53,5 +53,6 @@ def save_all_settings(
         # Clear password fields after save
         clear_password_fields_func()
     else:
-        status_label.config(text="Failed to save settings", foreground='red')
-        messagebox.showerror("Error", res.get('message', 'Failed to save settings'))
+        message = res.get('message', 'Failed to save settings')
+        status_label.config(text=message, foreground='red')
+        messagebox.showerror("Error", message)

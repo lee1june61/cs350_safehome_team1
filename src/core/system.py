@@ -76,6 +76,7 @@ class System(SystemLegacyMixin):
             max_attempts=max_attempts,
             lock_duration=lock_duration,
         )
+        self.auth_service.set_identity_contact(settings.monitoring_service_phone)
 
         initializer = SystemInitializer(
             storage=self._storage,
@@ -184,6 +185,7 @@ class System(SystemLegacyMixin):
             "delete_camera_password": self.camera_handler.delete_camera_password,
             "verify_camera_password": self.camera_handler.verify_camera_password,
             "get_thumbnails": self.camera_handler.get_thumbnails,
+            "verify_control_panel_password": self.auth_service.verify_control_panel_password,
             # Settings / Logs
             "get_system_settings": self.settings_handler.get_settings,
             "configure_system_settings": self.settings_handler.configure_settings,

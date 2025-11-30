@@ -15,6 +15,7 @@ class VideoFeedManager:
 
     def start(self):
         """Start video feed loop."""
+        self.stop()
         self._update()
 
     def stop(self):

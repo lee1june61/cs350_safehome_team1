@@ -26,8 +26,8 @@ def create_right_panel(parent: tk.Widget, callbacks: dict) -> Tuple[tk.Listbox, 
     # Arm/Disarm buttons
     arm_frame = ttk.Frame(right)
     arm_frame.pack(fill='x', pady=5)
-    ttk.Button(arm_frame, text="🔴 Arm Zone", command=callbacks['arm_zone'], width=12).pack(side='left', padx=2)
-    ttk.Button(arm_frame, text="⚪ Disarm Zone", command=callbacks['disarm_zone'], width=12).pack(side='left', padx=2)
+    ttk.Button(arm_frame, text="🔴 Arm Zone", command=callbacks['arm_zone'], width=14).pack(side='left', padx=2)
+    ttk.Button(arm_frame, text="⚪ Disarm Zone", command=callbacks['disarm_zone'], width=14).pack(side='left', padx=2)
     
     # Zone management buttons
     manage_frame = ttk.LabelFrame(right, text="Manage Zones", padding=5)
@@ -40,11 +40,14 @@ def create_right_panel(parent: tk.Widget, callbacks: dict) -> Tuple[tk.Listbox, 
     
     btn_row2 = ttk.Frame(manage_frame)
     btn_row2.pack(fill='x', pady=2)
-    ttk.Button(btn_row2, text="Edit Sensors", command=callbacks['edit_sensors'], width=12).pack(side='left', padx=2)
-    ttk.Button(btn_row2, text="Save Changes", command=callbacks['save_sensors'], width=12).pack(side='left', padx=2)
+    ttk.Button(btn_row2, text="Edit Zone", command=callbacks['edit_sensors'], width=12).pack(side='left', padx=2)
     
     # Help text
-    help_text = "• Select a zone, then click sensors on floor plan to add/remove\n• Green = Armed, Orange = Selected"
+    help_text = (
+        "• Select a zone, then click or drag on the floor plan to add sensors\n"
+        "• Use the popup dialog's Finish button to save sensor changes\n"
+        "• Green = Armed, Orange = Selected"
+    )
     ttk.Label(right, text=help_text, font=('Arial', 8), foreground='#666').pack(pady=5)
     
     return zone_list, status_label

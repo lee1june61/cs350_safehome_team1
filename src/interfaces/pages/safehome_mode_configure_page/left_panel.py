@@ -8,7 +8,7 @@ from typing import Callable, Tuple
 
 def create_left_panel(
     parent: tk.Widget,
-    on_sensor_click: Callable[[str, str], None]
+    on_sensor_click: Callable[[str, str, bool], None]
 ) -> Tuple[FloorPlan, ttk.Label]:
     """
     Creates the left panel with the floor plan and selection info.
@@ -18,7 +18,8 @@ def create_left_panel(
     
     floorplan = FloorPlan(left, 400, 280, show_cameras=False, show_sensors=True)
     floorplan.create().pack(fill='both', expand=True)
-    floorplan.set_on_click(on_sensor_click)
+    floorplan.set_on_sensor_click(on_sensor_click)
+    floorplan.set_on_click(lambda dev_id, dtype: on_sensor_click(dev_id, dtype, False))
     
     sel_info = ttk.Label(left, text="Active sensors: None", font=('Arial', 9))
     sel_info.pack(pady=(5, 0))

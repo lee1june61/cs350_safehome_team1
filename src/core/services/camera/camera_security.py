@@ -11,8 +11,9 @@ from src.devices.cameras.safehome_camera import SafeHomeCamera
 class CameraSecurityService:
     """Manages passwords and thumbnail views."""
 
-    def __init__(self, controller: CameraController):
+    def __init__(self, controller: CameraController, labels: Dict[int, str]):
         self._controller = controller
+        self._labels = labels
 
     def set_password(
         self, camera: SafeHomeCamera, cam_id: int, old_password: str, new_password: str
@@ -38,9 +39,17 @@ class CameraSecurityService:
         return {"success": True, "has_password": has_password}
 
     def thumbnails(self) -> Dict[str, any]:
-        thumbnails = {}
-        for cam_id, view in self._controller.display_thumbnail_view():
-            thumbnails[f"C{cam_id}"] = view
+        """Return cameras with lock/enabled metadata for thumbnail page."""
+        thumbnails: Dict[str, Dict[str, any]] = {}
+        for camera in self._controller.camera_list:
+            if not camera:
+                continue
+            cam_id = camera.get_id()
+            thumbnails[f"C{cam_id}"] = {
+                "locked": bool(camera.has_password() if hasattr(camera, "has_password") else False),
+                "location": self._labels.get(cam_id, f"C{cam_id}"),
+                "enabled": bool(camera.is_enabled() if hasattr(camera, "is_enabled") else True),
+            }
         return {"success": True, "data": thumbnails}
 
 

@@ -27,7 +27,7 @@ class CameraListUIBuilder:
     def _build_left_panel(self, parent):
         left = ttk.LabelFrame(parent, text="Click camera on map", padding=5)
         left.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
-        self._page._floorplan = FloorPlan(left, 380, 300)
+        self._page._floorplan = FloorPlan(left, 380, 300, show_cameras=True, show_sensors=False)
         self._page._floorplan.set_on_click(self._page._on_map_click)
         self._page._floorplan.create().pack()
 

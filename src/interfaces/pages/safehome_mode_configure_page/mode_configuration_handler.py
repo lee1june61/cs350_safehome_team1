@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import messagebox
 from typing import Set, List, Dict, Any, TYPE_CHECKING
 
+from ....core.system_defaults import MODE_CONFIGS
+
 if TYPE_CHECKING:
     from .mode_config_manager import ModeConfigManager
     from .mode_ui_updater import ModeUIUpdater
@@ -56,10 +58,17 @@ class ModeConfigurationHandler:
         
         for mode in self.MODES:
             res = self.page.send_to_system('get_mode_configuration', mode=mode)
-            if res.get('success'):
-                self._original_configs[mode] = set(res.get('data', []))
-            else:
-                self._original_configs[mode] = set()
+            sensors = set(res.get('data', [])) if res.get('success') else set()
+            if not sensors:
+                default = MODE_CONFIGS.get(mode.upper(), [])
+                if default:
+                    sensors = set(default)
+                    self.page.send_to_system(
+                        'configure_safehome_mode',
+                        mode=mode,
+                        sensors=list(default),
+                    )
+            self._manager.store_original_config(mode, sensors)
 
     def load_mode(self):
         """Load sensor configuration for selected mode."""
@@ -68,12 +77,9 @@ class ModeConfigurationHandler:
         self._ui_updater.update_mode_description(self.MODE_DESCRIPTIONS.get(mode, ''))
         
         res = self.page.send_to_system('get_mode_configuration', mode=mode)
-        if res.get('success'):
-            self._selected_sensors = set(res.get('data', []))
-        else:
-            self._selected_sensors = set()
-        
+        self._selected_sensors = set(res.get('data', [])) if res.get('success') else set()
         self._ui_updater.update_display(self._sensors, self._selected_sensors)
+        self._manager.cache_mode_config(mode, self._selected_sensors)
 
     def save_mode(self):
         """Save current mode configuration."""
@@ -83,15 +89,17 @@ class ModeConfigurationHandler:
         res = self.page.send_to_system('configure_safehome_mode', mode=mode, sensors=sensors)
         if res.get('success'):
             messagebox.showinfo("Success", f"Mode '{mode}' configuration saved\nActive sensors: {len(sensors)}")
-        else:
-            messagebox.showerror("Error", res.get('message', 'Failed to save'))
+            return True
+        messagebox.showerror("Error", res.get('message', 'Failed to save'))
+        return False
 
     def reset_mode(self):
         """Reset to original configuration."""
         if messagebox.askyesno("Confirm", "Reset to original configuration?"):
             mode = self.mode_var.get()
-            if mode in self._original_configs:
-                self._selected_sensors = self._original_configs[mode]
+            original = self._manager.get_original_config(mode)
+            if original:
+                self._selected_sensors = original
                 self._ui_updater.update_display(self._sensors, self._selected_sensors)
             else:
                 messagebox.showwarning("Warning", "Original configuration not found for this mode.")

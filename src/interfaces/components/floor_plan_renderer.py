@@ -4,6 +4,7 @@ import tkinter as tk
 from pathlib import Path
 from typing import Optional, Set, Dict, TYPE_CHECKING
 from .floor_plan_data import DEVICES, DEVICE_COLORS
+from ..utils import sensor_display_name
 
 try:
     from PIL import Image, ImageTk
@@ -119,7 +120,7 @@ def draw_device(
     canvas.create_text(
         x,
         y + 16,
-        text=dev_id,
+        text=sensor_display_name(dev_id, dtype),
         font=("Arial", 9, "bold"),
         fill="#333",
         tags=(f"lbl_{dev_id}",),

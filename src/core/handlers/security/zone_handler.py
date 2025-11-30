@@ -31,11 +31,15 @@ class ZoneCommandHandler:
     def disarm_zone(self, zone_id=None, **_) -> Dict[str, Any]:
         return self._zones.disarm_zone(zone_id, self._sensors)
 
-    def create_zone(self, name="", sensors=None, **_) -> Dict[str, Any]:
-        return self._zones.create_zone(name, sensors or [], self._auth.current_user)
+    def create_zone(self, name="", sensors=None, zone_name=None, **_) -> Dict[str, Any]:
+        zone_label = name or zone_name or ""
+        return self._zones.create_zone(zone_label, sensors or [], self._auth.current_user)
 
-    def update_zone(self, zone_id=None, name=None, sensors=None, **_) -> Dict[str, Any]:
-        return self._zones.update_zone(zone_id, name, sensors, self._auth.current_user)
+    def update_zone(
+        self, zone_id=None, name=None, sensors=None, zone_name=None, **_
+    ) -> Dict[str, Any]:
+        zone_label = name or zone_name
+        return self._zones.update_zone(zone_id, zone_label, sensors, self._auth.current_user)
 
     def delete_zone(self, zone_id=None, **_) -> Dict[str, Any]:
         return self._zones.delete_zone(zone_id, self._auth.current_user)

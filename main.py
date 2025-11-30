@@ -31,7 +31,7 @@ def main():
     print("=" * 60)
 
     system = System()
-    print(f"[OK] System created (State: {system._state})")
+    print(f"[OK] System created (State: {system.status})")
 
     # Root is hidden; only Control Panel and Web Interface windows are shown.
     root = tk.Tk()

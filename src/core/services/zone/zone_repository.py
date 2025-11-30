@@ -67,6 +67,13 @@ class ZoneRepository:
             return zone.zone_name
         return None
 
+    def set_zone_state(self, zone_id: int, armed: bool) -> bool:
+        zone = self._config_manager.get_safety_zone(zone_id)
+        if not zone:
+            return False
+        zone.is_armed = armed
+        return self._config_manager.update_safety_zone(zone)
+
     def get_zone(self, zone_id: int) -> Optional[Dict]:
         zone = self._config_manager.get_safety_zone(zone_id)
         if not zone:

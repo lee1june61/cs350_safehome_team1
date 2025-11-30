@@ -2,10 +2,11 @@
 
 
 class IdentityValidator:
-    """Validates phone/address info for verification flows."""
+    """Validates phone info for verification flows."""
 
     def __init__(self):
         self._verified = False
+        self._expected_phone: str | None = None
 
     def reset(self):
         self._verified = False
@@ -14,25 +15,28 @@ class IdentityValidator:
     def verified(self) -> bool:
         return self._verified
 
-    def verify(self, value: str):
-        v = value.strip()
-        if not v:
-            return False, "Please enter address or phone number"
+    def set_expected_phone(self, phone: str):
+        self._expected_phone = self._normalize(phone)
+        self._verified = False
 
-        cleaned = v.replace("-", "").replace(" ", "").replace("(", "").replace(")", "")
-        if cleaned.isdigit():
-            if len(cleaned) >= 10:
+    def _normalize(self, value: str) -> str:
+        return "".join(ch for ch in (value or "") if ch.isdigit())
+
+    def verify(self, value: str):
+        digits = self._normalize(value)
+        if not digits:
+            return False, "Enter the registered phone number"
+
+        if self._expected_phone:
+            if digits == self._expected_phone:
                 self._verified = True
                 return True, None
-            return False, "Phone number must be at least 10 digits"
+            return False, "Phone number does not match our records"
 
-        if len(v) >= 5 and any(c.isalpha() for c in v):
+        if len(digits) >= 10:
             self._verified = True
             return True, None
 
-        return (
-            False,
-            "Invalid verification. Enter a valid phone number (10+ digits) or address (5+ chars with letters)",
-        )
+        return False, "Phone number must be at least 10 digits"
 
 

@@ -2,7 +2,8 @@ from tkinter import messagebox, ttk
 import tkinter as tk
 from typing import Dict, Any, List, Optional, TYPE_CHECKING
 from .zone_ui_updater import ZoneUIUpdater
-from .zone_action_handler import ZoneActionHandler # Added import
+from .zone_action_handler import ZoneActionHandler
+from .sensor_selection_dialog import SensorSelectionDialog
 
 if TYPE_CHECKING:
     from ...components.floor_plan import FloorPlan
@@ -13,10 +14,12 @@ class ZoneManager:
         self.page = page
         self.floorplan = floorplan
         self.zones: List[Dict] = []
-        self._editing_zone_id: Optional[str] = None # Added type hint
+        self._editing_zone_id: Optional[int] = None
+        self._pending_zone_name: Optional[str] = None
         self._sensor_cache: List[Dict] = []
+        self._selection_dialog: Optional[SensorSelectionDialog] = None
         self._ui_updater = ZoneUIUpdater(self, floorplan, zone_list, status_label, sel_info_label)
-        self._action_handler = ZoneActionHandler(self) # Instantiated action handler
+        self._action_handler = ZoneActionHandler(self)
 
     def load_zones(self):
         self._refresh_sensor_cache()
@@ -39,6 +42,7 @@ class ZoneManager:
         return None
 
     def on_zone_select(self, event: Any):
+        self.cancel_pending_creation()
         zone = self.get_selected_zone()
         if zone:
             self._ui_updater.display_selected_zone_info(zone)
@@ -49,10 +53,10 @@ class ZoneManager:
         self._ui_updater.update_selection_info()
 
     def arm_zone(self):
-        self._action_handler._set_zone_armed_state(True) # Delegated to action handler
+        self._action_handler.set_armed_state(True)
 
     def disarm_zone(self):
-        self._action_handler._set_zone_armed_state(False) # Delegated to action handler
+        self._action_handler.set_armed_state(False)
 
     def create_zone(self):
         self._action_handler.create_zone() # Delegated to action handler
@@ -68,12 +72,14 @@ class ZoneManager:
 
     def on_show(self):
         self._editing_zone_id = None
+        self._pending_zone_name = None
         self.floorplan.set_select_mode(False)
         self.load_zones()
         self._ui_updater.clear_all_display()
 
     def on_sensor_selected(self, sensor_id: str, dtype: str, is_selected: bool):
         self._ui_updater.update_selection_info()
+        self.update_selection_dialog()
 
     def handle_device_click_info(self, dev_id: str, dtype: str):
         """Handle device click (non-select mode) to display sensor info."""
@@ -91,3 +97,91 @@ class ZoneManager:
                     f"Location: {sensor.get('location', 'Unknown')}\nStatus: {armed}",
                 )
                 return
+
+    def begin_new_zone(self, name: str):
+        self._pending_zone_name = name
+        self._editing_zone_id = None
+        self.floorplan.set_select_mode(True)
+        self.floorplan.clear_selection()
+        self._ui_updater.update_selection_info()
+        self._ui_updater.update_status_label(
+            f"Creating '{name}'. Select sensors (click or drag).",
+            is_error=False,
+        )
+        self._open_selection_dialog(
+            title=f"Create Zone: {name}",
+            description="Select sensors on the floor plan. They will appear below. Click Finish Selection when ready.",
+            cancel_callback=lambda: self.cancel_pending_creation(close_dialog=False),
+        )
+        self.update_selection_dialog()
+
+    def finalize_new_zone(self):
+        self._pending_zone_name = None
+        self._editing_zone_id = None
+        self.floorplan.set_select_mode(False)
+        self.floorplan.clear_selection()
+        self._ui_updater.update_selection_info()
+        self._ui_updater.update_status_label("Safety zone saved.", is_error=False)
+        self._close_selection_dialog()
+
+    def cancel_pending_creation(self, close_dialog: bool = True):
+        if self._pending_zone_name:
+            self._pending_zone_name = None
+            self.floorplan.set_select_mode(False)
+            self.floorplan.clear_selection()
+            self._ui_updater.update_selection_info()
+            self._ui_updater.update_status_label("", is_error=False)
+            if close_dialog:
+                self._close_selection_dialog()
+            else:
+                self._selection_dialog = None
+
+    def finish_edit_mode(self, close_dialog: bool = True):
+        self._editing_zone_id = None
+        self.floorplan.set_select_mode(False)
+        self.floorplan.clear_selection()
+        self._ui_updater.update_selection_info()
+        self._ui_updater.update_status_label("", is_error=False)
+        if close_dialog:
+            self._close_selection_dialog()
+        else:
+            self._selection_dialog = None
+
+    def select_zone(self, zone_id: Optional[int]):
+        if zone_id is None:
+            return
+        for idx, zone in enumerate(self.zones):
+            if zone.get('id') == zone_id:
+                self._ui_updater.zone_list.selection_clear(0, tk.END)
+                self._ui_updater.zone_list.selection_set(idx)
+                self.on_zone_select(None)
+                break
+
+    def open_edit_selection_dialog(self, zone_name: str):
+        self._open_selection_dialog(
+            title=f"Edit Zone: {zone_name}",
+            description="Adjust the sensor selection. Click Finish Selection to save changes.",
+            cancel_callback=lambda: self.finish_edit_mode(close_dialog=False),
+        )
+        self.update_selection_dialog()
+
+    def _open_selection_dialog(self, title: str, description: str, cancel_callback):
+        parent = self.page.get_frame().winfo_toplevel()
+        self._close_selection_dialog()
+        self._selection_dialog = SensorSelectionDialog(
+            parent=parent,
+            title=title,
+            description=description,
+            on_finish=self.save_zone_sensors,
+            on_cancel=cancel_callback,
+        )
+        self._selection_dialog.update_selected(self.floorplan.get_selected())
+
+    def update_selection_dialog(self):
+        if self._selection_dialog:
+            self._selection_dialog.update_selected(self.floorplan.get_selected())
+
+    def _close_selection_dialog(self):
+        if self._selection_dialog:
+            self._selection_dialog.close()
+            self._selection_dialog = None

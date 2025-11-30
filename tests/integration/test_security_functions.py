@@ -31,7 +31,8 @@ class TestIT008ArmDisarmControlPanel:
             "control_panel", "arm_system", mode="AWAY"
         )
         assert result["success"] is True
-        assert system_logged_in_master._mode == "AWAY"
+        status = system_logged_in_master.handle_request("control_panel", "get_status")
+        assert status["data"]["mode"] == "AWAY"
 
     def test_arm_home(self, system_logged_in_master):
         """Normal: Arm HOME mode."""
@@ -48,7 +49,8 @@ class TestIT008ArmDisarmControlPanel:
         """Normal: Disarm armed system."""
         result = system_armed_away.handle_request("control_panel", "disarm_system")
         assert result["success"] is True
-        assert system_armed_away._mode == "DISARMED"
+        status = system_armed_away.handle_request("control_panel", "get_status")
+        assert status["data"]["mode"] == "DISARMED"
 
     def test_arm_fails_door_open(self, system_logged_in_master):
         """Exception 2a: Arm fails if door/window open."""
@@ -107,7 +109,28 @@ class TestIT010AlarmCondition:
             "control_panel", "poll_sensors"
         )
         # The system should detect intrusion
-        assert result.get("intrusion_detected") or system_armed_away._state == "ALARM"
+        alarm_state = system_armed_away.alarm_service.state
+        assert result.get("intrusion_detected") or alarm_state == "ALARM"
+
+
+class TestSecurityVerification:
+    """Additional: Security verification lock behavior."""
+
+    def test_identity_lockout_after_failures(self, system_on):
+        """Three failed attempts should lock verification."""
+        for _ in range(2):
+            res = system_on.handle_request("web", "verify_identity", value="123")
+            assert res["success"] is False
+            assert not res.get("locked")
+
+        third = system_on.handle_request("web", "verify_identity", value="123")
+        assert third["success"] is False
+        assert third.get("locked")
+
+        locked = system_on.handle_request(
+            "web", "verify_identity", value="1234567890"
+        )
+        assert locked.get("locked") is True
 
 
 class TestIT011ConfigureSafetyZone:
@@ -142,8 +165,16 @@ class TestIT012CreateSafetyZone:
             "web", "create_safety_zone",
             name="Duplicate Zone", sensors=["S2"]
         )
-        # Should fail or warn about duplicate
-        # Implementation may vary
+        assert result["success"] is False
+        assert result["message"] == "Same safety zone exists"
+
+    def test_create_zone_requires_sensors(self, system_web_logged_in):
+        """Exception 3b: Must select sensors when creating."""
+        result = system_web_logged_in.handle_request(
+            "web", "create_safety_zone", name="Empty Zone", sensors=[]
+        )
+        assert result["success"] is False
+        assert result["message"] == "Select new safety zone and type safety zone name"
 
 
 class TestIT013DeleteSafetyZone:
@@ -178,6 +209,48 @@ class TestIT014UpdateSafetyZone:
                 zone_id=zone_id, sensors=["S1", "S3", "M1"]
             )
             assert result["success"] is True
+
+
+class TestZoneArmingRules:
+    """SRS-specific safety zone arming rules."""
+
+    def test_arm_zone_blocks_open_door(self, system_web_logged_in):
+        """Arming fails when a door/window inside the zone is open."""
+        zones = system_web_logged_in.handle_request("web", "get_safety_zones")["data"]
+        target_zone = next(z for z in zones if "S5" in z.get("sensors", []))
+        door_sensor = system_web_logged_in.sensor_service.get_sensor("S5")
+        assert door_sensor is not None
+        door_sensor.set_open(True)
+
+        result = system_web_logged_in.handle_request(
+            "web", "arm_zone", zone_id=target_zone["id"]
+        )
+        assert result["success"] is False
+        assert result["message"] == "Doors and windows not closed"
+        door_sensor.set_open(False)
+
+    def test_shared_sensor_stays_armed_until_all_zones_disarmed(self, system_web_logged_in):
+        """Sensors shared by zones must stay armed until every zone is disarmed."""
+        zone_one = system_web_logged_in.handle_request(
+            "web", "create_safety_zone", name="Shared One", sensors=["S1"]
+        )
+        zone_two = system_web_logged_in.handle_request(
+            "web", "create_safety_zone", name="Shared Two", sensors=["S1", "M1"]
+        )
+        assert zone_one["success"] and zone_two["success"]
+
+        sensor = system_web_logged_in.sensor_service.get_sensor("S1")
+        assert sensor is not None
+
+        system_web_logged_in.handle_request("web", "arm_zone", zone_id=zone_one["zone_id"])
+        system_web_logged_in.handle_request("web", "arm_zone", zone_id=zone_two["zone_id"])
+        assert sensor.isArmed() is True
+
+        system_web_logged_in.handle_request("web", "disarm_zone", zone_id=zone_one["zone_id"])
+        assert sensor.isArmed() is True
+
+        system_web_logged_in.handle_request("web", "disarm_zone", zone_id=zone_two["zone_id"])
+        assert sensor.isArmed() is False
 
 
 class TestIT015ConfigureSafeHomeModes:

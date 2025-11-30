@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Dict, Optional
 
-from ...configuration import AccessLevel, LoginManager, StorageManager
+from ...configuration import AccessLevel, LoginInterface, LoginManager, StorageManager
 from ..logging.system_logger import SystemLogger
 from .auth.lock_manager import LockManager
 from .auth.identity_validator import IdentityValidator
@@ -27,6 +27,7 @@ class AuthService:
         self._logger = logger
         self._storage = storage_manager
         self._lock_manager = LockManager(max_attempts, lock_duration)
+        self._verification_lock = LockManager(max_attempts, lock_duration)
         self._identity = IdentityValidator()
         self._resolver = ControlPanelUserResolver(storage_manager)
         self._current_user: Optional[str] = None
@@ -132,10 +133,22 @@ class AuthService:
         return {"success": True}
 
     def verify_identity(self, value="", **_) -> Dict:
+        lock = self._verification_lock.check_lock()
+        if lock:
+            lock.setdefault("message", "Verification locked")
+            return lock
+
         success, message = self._identity.verify(value)
         if success:
+            self._verification_lock.record_success()
             return {"success": True}
-        return {"success": False, "message": message}
+
+        failure = self._verification_lock.record_failure(
+            message or "Invalid verification"
+        )
+        if "message" not in failure and message:
+            failure["message"] = message
+        return failure
 
     def is_identity_verified(self, **_) -> Dict:
         return {"success": True, "verified": self._identity.verified}
@@ -184,6 +197,55 @@ class AuthService:
         self, *, max_attempts: Optional[int] = None, lock_duration: Optional[int] = None
     ):
         self._lock_manager.update_policy(
+            max_attempts=max_attempts, lock_duration=lock_duration
+        )
+        self._verification_lock.update_policy(
+            max_attempts=max_attempts, lock_duration=lock_duration
+        )
+
+    def set_identity_contact(self, phone: Optional[str]):
+        self._identity.set_expected_phone(phone or "")
+
+    def verify_control_panel_password(
+        self, password: str = "", require_master: bool = True, **_
+    ) -> Dict:
+        lock = self._lock_manager.check_lock()
+        if lock:
+            return lock
+        if not password:
+            return self._lock_manager.record_failure(message="Password required")
+        username = "master" if require_master else "guest"
+        if self._login_manager.validate_credentials(
+            username, password, "control_panel"
+        ):
+            self._lock_manager.record_success()
+            return {"success": True}
+        return self._lock_manager.record_failure(message="Incorrect password")
+
+    def update_control_panel_passwords(
+        self, master_password: Optional[str] = None, guest_password: Optional[str] = None
+    ):
+        updated = False
+        if master_password:
+            updated = self._update_cp_password("master", master_password) or updated
+        if guest_password:
+            updated = self._update_cp_password("guest", guest_password) or updated
+        return {"success": updated}
+
+    def _update_cp_password(self, username: str, new_password: str) -> bool:
+        record = self._storage.get_login_interface(username, "control_panel")
+        if not record:
+            return False
+        login_if = LoginInterface.from_dict(record)
+        login_if.password_min_length = 4
+        login_if.password_requires_digit = False
+        login_if.password_requires_special = False
+        login_if.set_password(new_password)
+        login_if.login_attempts = 0
+        login_if.is_locked = False
+        self._storage.save_login_interface(login_if.to_dict())
+        return True
+        self._verification_lock.update_policy(
             max_attempts=max_attempts, lock_duration=lock_duration
         )
         if hasattr(self._login_manager, "configure_lockout"):

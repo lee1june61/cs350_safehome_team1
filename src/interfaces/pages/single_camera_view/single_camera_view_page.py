@@ -1,4 +1,6 @@
 """SingleCameraViewPage - SRS V.3.a,b,c,d."""
+from tkinter import messagebox
+
 from ...components.page import Page
 from .ui_builder import SingleCameraViewUIBuilder
 from .password_manager import CameraPasswordManager
@@ -13,6 +15,7 @@ class SingleCameraViewPage(Page):
         super().__init__(parent, web_interface)
         self._cam_id = None
         self._is_visible = False
+        self._video_paused = False
         self._video = None
         self._info = None
         self._btn_en = None
@@ -38,12 +41,38 @@ class SingleCameraViewPage(Page):
         self._update_info()
 
     def _enable(self):
-        self.send_to_system("enable_camera", camera_id=self._cam_id)
-        self._update_info()
+        res = self.send_to_system("enable_camera", camera_id=self._cam_id)
+        if res.get("success"):
+            self._video_paused = False
+            if self._video:
+                self._video.config(text="", foreground="#000")
+            self._video_feed.start()
+            self._update_info()
+        else:
+            messagebox.showerror("Enable Camera", res.get("message", "Unable to enable camera."))
 
     def _disable(self):
-        self.send_to_system("disable_camera", camera_id=self._cam_id)
-        self._update_info()
+        res = self.send_to_system("disable_camera", camera_id=self._cam_id)
+        if res.get("success"):
+            self.blank_video("Camera disabled.\nPress Enable to resume.")
+            self._update_info()
+        else:
+            messagebox.showerror("Disable Camera", res.get("message", "Unable to disable camera."))
+
+    def blank_video(self, message: str, pause_feed: bool = True):
+        """Immediately hide the live view with a message."""
+        if pause_feed:
+            self._video_feed.stop()
+            self._video_paused = True
+        if self._video:
+            self._video.config(
+                image="",
+                text=message,
+                font=('Arial', 14, 'bold'),
+                foreground='#555',
+                compound='center'
+            )
+            self._video.image = None
 
     def _update_info(self):
         """Update camera info display."""
@@ -52,7 +81,7 @@ class SingleCameraViewPage(Page):
             return
         c = res.get("data", {})
         en = c.get("enabled", False)
-        pw = "Yes" if c.get("password") else "No"
+        pw = "Yes" if c.get("has_password") else "No"
         text = (
             f"ID: {c.get('id')}\n"
             f"Loc: {c.get('location')}\n"
@@ -63,10 +92,15 @@ class SingleCameraViewPage(Page):
         self._info.config(text=text)
         self._btn_en.config(state="disabled" if en else "normal")
         self._btn_dis.config(state="normal" if en else "disabled")
+        if en and not self._video_paused and self._is_visible:
+            self._video_feed.start()
 
     def on_show(self):
         self._is_visible = True
         self._cam_id = self._web_interface.get_context("camera_id", "C1")
+        self._video_paused = False
+        if self._video:
+            self._video.config(text="")
         self._update_info()
         self._video_feed.start()
 

@@ -43,6 +43,7 @@ class CameraQueryService:
             "coords": coords,
             "enabled": camera.is_enabled(),
             "pan": camera.get_pan_angle(),
+            "tilt": getattr(camera, "get_tilt_angle", lambda: None)(),
             "zoom": camera.get_zoom_level(),
             "has_password": camera.has_password(),
         }

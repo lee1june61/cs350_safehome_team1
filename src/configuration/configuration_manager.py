@@ -6,6 +6,7 @@ from .safehome_mode import SafeHomeMode
 from .safety_zone import SafetyZone
 from .storage_manager import StorageManager
 from .system_settings import SystemSettings
+from ..core.system_defaults import MODE_CONFIGS
 
 
 class ConfigurationManager:
@@ -15,13 +16,16 @@ class ConfigurationManager:
         self._storage_manager = storage_manager
 
     def initialize_configuration(self) -> bool:
-        default_modes = [
-            SafeHomeMode(1, "Home", [], True, "Minimal sensors when home"),
-            SafeHomeMode(2, "Away", [], True, "All sensors when away"),
-            SafeHomeMode(3, "Overnight", [], True, "Night mode"),
-            SafeHomeMode(4, "Extended", [], True, "Long absence mode"),
+        default_definitions = [
+            ("HOME", "Minimal sensors when home"),
+            ("AWAY", "All sensors when away"),
+            ("OVERNIGHT", "Night mode"),
+            ("EXTENDED", "Long absence mode"),
+            ("GUEST", "Guest mode"),
         ]
-        for mode in default_modes:
+        for idx, (name, desc) in enumerate(default_definitions, start=1):
+            sensors = MODE_CONFIGS.get(name.upper(), [])
+            mode = SafeHomeMode(idx, name, list(sensors), True, desc)
             self._storage_manager.save_safehome_mode(mode.to_dict())
         settings = SystemSettings()
         settings.save_to_database(self._storage_manager)

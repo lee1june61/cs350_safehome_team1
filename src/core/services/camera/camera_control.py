@@ -41,10 +41,16 @@ class CameraControlService:
     def tilt(self, camera, direction: str):
         if not camera:
             return {"success": False, "message": "Camera not found"}
-        if hasattr(camera, "tilt_up") and hasattr(camera, "tilt_down"):
-            success = camera.tilt_up() if direction == "up" else camera.tilt_down()
-            return {"success": success, "tilt": getattr(camera, "tilt_angle", None)}
-        return {"success": False, "message": "Tilt not supported"}
+        if not hasattr(camera, "tilt_up") or not hasattr(camera, "tilt_down"):
+            return {"success": False, "message": "Tilt not supported"}
+
+        direction = (direction or "").lower()
+        if direction not in ("up", "down"):
+            return {"success": False, "message": "Invalid tilt direction"}
+
+        success = camera.tilt_up() if direction == "up" else camera.tilt_down()
+        tilt_value = camera.get_tilt_angle() if hasattr(camera, "get_tilt_angle") else getattr(camera, "tilt_angle", None)
+        return {"success": success, "tilt": tilt_value}
 
     def enable(self, camera_id: int):
         if self._controller.enable_camera(camera_id):

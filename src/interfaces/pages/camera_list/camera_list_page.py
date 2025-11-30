@@ -27,6 +27,7 @@ class CameraListPage(Page):
             for c in self._cams:
                 if c["id"] == dev_id:
                     self._select(c)
+                    self._view()
                     break
 
     def _on_select(self, event):
