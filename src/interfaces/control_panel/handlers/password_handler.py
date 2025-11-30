@@ -13,20 +13,40 @@ class PasswordHandler:
 
     def __init__(self, panel: "SafeHomeControlPanel"):
         self._panel = panel
+        self._max_attempts = self.MAX_ATTEMPTS
+        self._lock_time_ms = self.LOCK_TIME_MS
         self._pw_buffer = ""
         self._new_pw_buffer = ""
-        self._attempts = self.MAX_ATTEMPTS
+        self._attempts = self._max_attempts
         self._access_level: Optional[str] = None
 
     @property
     def access_level(self) -> Optional[str]:
         return self._access_level
 
+    @property
+    def lock_time_ms(self) -> int:
+        return self._lock_time_ms
+
+    @property
+    def lock_time_seconds(self) -> int:
+        return max(1, self._lock_time_ms // 1000)
+
+    def configure_policy(
+        self, *, max_attempts: Optional[int] = None, lock_time_seconds: Optional[int] = None
+    ):
+        """Allow runtime configuration from system settings."""
+        if max_attempts and max_attempts > 0:
+            self._max_attempts = max_attempts
+            self._attempts = self._max_attempts
+        if lock_time_seconds and lock_time_seconds > 0:
+            self._lock_time_ms = lock_time_seconds * 1000
+
     def reset(self):
         """Reset password state."""
         self._pw_buffer = ""
         self._access_level = None
-        self._attempts = self.MAX_ATTEMPTS
+        self._attempts = self._max_attempts
 
     def add_digit(self, digit: str, on_complete: Callable[[], None]):
         """Add digit to password buffer."""
@@ -49,7 +69,7 @@ class PasswordHandler:
 
         if res.get("success"):
             self._access_level = res.get("access_level", "GUEST")
-            self._attempts = self.MAX_ATTEMPTS
+            self._attempts = self._max_attempts
             return True
 
         self._attempts -= 1
@@ -63,7 +83,7 @@ class PasswordHandler:
 
     def unlock(self):
         """Reset attempts after lockout."""
-        self._attempts = self.MAX_ATTEMPTS
+        self._attempts = self._max_attempts
 
     def is_master(self) -> bool:
         return self._access_level == "MASTER"

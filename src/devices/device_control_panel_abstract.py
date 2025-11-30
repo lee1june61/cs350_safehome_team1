@@ -73,9 +73,9 @@ class DeviceControlPanelAbstract(tk.Toplevel, ABC):
         # Row 0: Labels
         tk.Label(button_frame, text="     on").grid(row=0, column=0)
         tk.Label(button_frame, text="").grid(row=0, column=1)
-        tk.Label(button_frame, text="    off").grid(row=0, column=2)
+        tk.Label(button_frame, text="").grid(row=0, column=2)
         tk.Label(button_frame, text="").grid(row=0, column=3)
-        tk.Label(button_frame, text="  reset").grid(row=0, column=4)
+        tk.Label(button_frame, text="    off").grid(row=0, column=4)
         
         # Row 1: 1, 2, 3
         Button(button_frame, text="1", bg='white', command=self.button1, width=3).grid(row=1, column=0)
@@ -85,8 +85,9 @@ class DeviceControlPanelAbstract(tk.Toplevel, ABC):
         Button(button_frame, text="3", bg='white', command=self.button3, width=3).grid(row=1, column=4)
         
         # Row 2: Empty
-        for i in range(5):
+        for i in range(4):
             tk.Label(button_frame, text="").grid(row=2, column=i)
+        tk.Label(button_frame, text="  reset").grid(row=2, column=4)
         
         # Row 3: 4, 5, 6
         Button(button_frame, text="4", bg='white', command=self.button4, width=3).grid(row=3, column=0)

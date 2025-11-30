@@ -11,9 +11,12 @@ from .storage_manager import StorageManager
 class LoginManager:
     """Manages user authentication, login/logout, and password changes."""
 
-    def __init__(self, storage_manager: StorageManager) -> None:
+    def __init__(
+        self, storage_manager: StorageManager, *, enforce_lockout: bool = True
+    ) -> None:
         self._storage_manager = storage_manager
         self._max_attempts = 3
+        self._enforce_lockout = enforce_lockout
 
     def login(self, username: str, password: str, interface: str) -> Optional[int]:
         data = self._storage_manager.get_login_interface(username, interface)
@@ -21,10 +24,18 @@ class LoginManager:
             return None
         login_if = LoginInterface.from_dict(data)
         if login_if.is_locked:
-            return None
+            if not self._enforce_lockout:
+                login_if.unlock_account()
+                self._storage_manager.save_login_interface(login_if.to_dict())
+            else:
+                return None
         if not login_if.verify_password(password):
             login_if.increment_attempts()
-            if login_if.login_attempts >= self._max_attempts:
+            if (
+                self._enforce_lockout
+                and self._max_attempts > 0
+                and login_if.login_attempts >= self._max_attempts
+            ):
                 login_if.lock_account()
             self._storage_manager.save_login_interface(login_if.to_dict())
             return None
@@ -65,3 +76,11 @@ class LoginManager:
     def is_account_locked(self, username: str, interface: str) -> bool:
         data = self._storage_manager.get_login_interface(username, interface)
         return bool(data.get("is_locked")) if data else False
+
+    def configure_lockout(
+        self, *, max_attempts: Optional[int] = None, enforce_lockout: Optional[bool] = None
+    ):
+        if max_attempts is not None and max_attempts > 0:
+            self._max_attempts = max_attempts
+        if enforce_lockout is not None:
+            self._enforce_lockout = enforce_lockout

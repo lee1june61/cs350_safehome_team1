@@ -1,31 +1,6 @@
-"""
-SafeHome Devices Package
+"""SafeHome devices namespace with lazy attribute exports."""
 
-Only the camera-related APIs are imported eagerly here to avoid pulling in
-sensor modules (which may not be needed for every test suite).
-"""
-
-from .interfaces import InterfaceCamera, InterfaceSensor
-from .cameras.device_camera import DeviceCamera
-from .cameras.safehome_camera import SafeHomeCamera
-from .custom_device_camera import CustomDeviceCamera
-from .custom_motion_detector import CustomMotionDetector
-from .custom_window_door_sensor import CustomWinDoorSensor
-from .control_panel_abstract import DeviceControlPanelAbstract
-
-# Import sensor-related classes from the sensors subpackage
-from .sensors import (
-    Sensor,
-    WindowDoorSensor,
-    MotionSensor,
-    SensorController,
-    DeviceSensorTester,
-    DeviceWinDoorSensor,
-    DeviceMotionDetector,
-)
-
-# Import alarm
-from .alarm import Alarm
+from importlib import import_module
 
 __all__ = [
     "InterfaceCamera",
@@ -45,3 +20,37 @@ __all__ = [
     "SensorController",
     "Alarm",
 ]
+
+_EXPORTS = {
+    "InterfaceCamera": "src.devices.interfaces:InterfaceCamera",
+    "InterfaceSensor": "src.devices.interfaces:InterfaceSensor",
+    "DeviceCamera": "src.devices.cameras.device_camera:DeviceCamera",
+    "SafeHomeCamera": "src.devices.cameras.safehome_camera:SafeHomeCamera",
+    "CustomDeviceCamera": "src.devices.custom_device_camera:CustomDeviceCamera",
+    "CustomMotionDetector": "src.devices.custom_motion_detector:CustomMotionDetector",
+    "CustomWinDoorSensor": "src.devices.custom_window_door_sensor:CustomWinDoorSensor",
+    "DeviceSensorTester": "src.devices.sensors.device_sensor_tester:DeviceSensorTester",
+    "DeviceWinDoorSensor": "src.devices.sensors.device_windoor_sensor:DeviceWinDoorSensor",
+    "DeviceMotionDetector": "src.devices.sensors.device_motion_detector:DeviceMotionDetector",
+    "DeviceControlPanelAbstract": "src.devices.control_panel_abstract:DeviceControlPanelAbstract",
+    "Sensor": "src.devices.sensors.sensor:Sensor",
+    "WindowDoorSensor": "src.devices.sensors.window_door_sensor:WindowDoorSensor",
+    "MotionSensor": "src.devices.sensors.motion_sensor:MotionSensor",
+    "SensorController": "src.devices.sensors.sensor_controller:SensorController",
+    "Alarm": "src.devices.alarm.alarm:Alarm",
+}
+
+
+def __getattr__(name):
+    target = _EXPORTS.get(name)
+    if not target:
+        raise AttributeError(f"module 'src.devices' has no attribute {name!r}")
+    module_name, attr_name = target.split(":")
+    module = import_module(module_name)
+    value = getattr(module, attr_name)
+    globals()[name] = value
+    return value
+
+
+def __dir__():
+    return sorted(__all__)

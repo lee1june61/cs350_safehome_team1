@@ -21,6 +21,10 @@ class SensorController:
         self.nextSensorID = 1
         self.initialSensorNumber = initial_sensor_number
         self._sensors: Dict[int, Sensor] = {}
+
+    def initialize(self) -> bool:
+        """Legacy initializer hook for compatibility tests."""
+        return True
     
     def addSensor(self, xCoord: int, yCoord: int, inType: int) -> bool:
         """
@@ -217,6 +221,16 @@ class SensorController:
             센서 ID를 키로 하는 센서 딕셔너리
         """
         return self._sensors
+
+    # Legacy snake_case aliases used by older code/tests
+    def arm_sensors(self, sensorIDList: List[int]) -> bool:
+        return self.armSensors(sensorIDList)
+
+    def disarm_sensors(self, sensorIDList: List[int]) -> bool:
+        return self.disarmSensors(sensorIDList)
+
+    def disarm_all_sensors(self) -> bool:
+        return self.disarmAllSensors()
 
 
 

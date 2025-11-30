@@ -27,6 +27,13 @@ class ConfigurationManager:
         settings.save_to_database(self._storage_manager)
         return True
 
+    # Legacy aliases expected by older unit tests
+    def initialize(self) -> bool:
+        return self.initialize_configuration()
+
+    def reset_to_default(self) -> bool:
+        return self.initialize_configuration()
+
     def get_system_settings(self) -> SystemSettings:
         settings = SystemSettings()
         settings.load_from_database(self._storage_manager)
