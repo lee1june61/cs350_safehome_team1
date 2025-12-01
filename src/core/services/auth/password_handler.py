@@ -30,6 +30,8 @@ class PasswordChangeHandler:
             if not ensure_auth_fn(target_user, current_password, interface):
                 return {"success": False, "message": "Must be logged in"}
         try:
+            if not self._passwords_are_unique(new_password, target_user, interface):
+                return {"success": False, "message": "Pin reserved"}
             success = self._login_manager.change_password(
                 target_user, current_password, new_password, interface
             )
@@ -43,6 +45,17 @@ class PasswordChangeHandler:
         except Exception as exc:  # pragma: no cover
             return {"success": False, "message": str(exc)}
         return {"success": False, "message": "Password change failed"}
+
+    def _passwords_are_unique(self, new_password: str, username: str, interface: str) -> bool:
+        """Control-panel master/guest passwords must not match."""
+        if interface != "control_panel" or username not in {"master", "guest"}:
+            return True
+        other_user = "guest" if username == "master" else "master"
+        data = self._login_manager._storage_manager.get_login_interface(other_user, interface)
+        if not data:
+            return True
+        other_login = LoginInterface.from_dict(data)
+        return not other_login.verify_password(new_password)
 
 
 class ControlPanelPasswordHandler:
@@ -68,17 +81,52 @@ class ControlPanelPasswordHandler:
         self, master_password: Optional[str], guest_password: Optional[str]
     ) -> Dict:
         updated = False
+        errors = False
+        messages = []
+
+        master_login = self._get_cp_login("master")
+        guest_login = self._get_cp_login("guest")
+
         if master_password:
-            updated = self._update_cp_password("master", master_password) or updated
+            if guest_login and guest_login.verify_password(master_password):
+                messages.append("Master PIN unchanged: matches guest PIN.")
+                errors = True
+            elif self._update_cp_password("master", master_password):
+                updated = True
+                master_login = self._get_cp_login("master")
+            else:
+                messages.append("Master PIN not found.")
+                errors = True
+
         if guest_password:
-            updated = self._update_cp_password("guest", guest_password) or updated
-        return {"success": updated}
+            # refresh master_login in case we just updated it above
+            master_login = master_login or self._get_cp_login("master")
+            if master_login and master_login.verify_password(guest_password):
+                messages.append("Guest PIN unchanged: matches master PIN.")
+                errors = True
+            elif self._update_cp_password("guest", guest_password):
+                updated = True
+                guest_login = self._get_cp_login("guest")
+            else:
+                messages.append("Guest PIN not found.")
+                errors = True
+
+        success = updated and not errors
+        result = {"success": success}
+        if updated:
+            result["updated"] = True
+        if errors:
+            result["errors"] = True
+            if updated and not success:
+                result["partial_success"] = True
+        if messages:
+            result["message"] = " ".join(messages)
+        return result
 
     def _update_cp_password(self, username: str, new_password: str) -> bool:
-        record = self._storage.get_login_interface(username, "control_panel")
-        if not record:
+        login_if = self._get_cp_login(username)
+        if not login_if:
             return False
-        login_if = LoginInterface.from_dict(record)
         login_if.password_min_length = 4
         login_if.password_requires_digit = False
         login_if.password_requires_special = False
@@ -87,4 +135,8 @@ class ControlPanelPasswordHandler:
         login_if.is_locked = False
         self._storage.save_login_interface(login_if.to_dict())
         return True
+
+    def _get_cp_login(self, username: str) -> Optional[LoginInterface]:
+        record = self._storage.get_login_interface(username, "control_panel")
+        return LoginInterface.from_dict(record) if record else None
 
