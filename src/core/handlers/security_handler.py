@@ -4,13 +4,6 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict
 
-from ..logging.system_logger import SystemLogger
-from ..services.sensor_service import SensorService
-from ..services.zone_service import ZoneService
-from ..services.mode_service import ModeService
-from ..services.alarm_service import AlarmService
-from ..services.auth_service import AuthService
-from ..services.camera_service import CameraService
 from .security.zone_handler import ZoneCommandHandler
 from .security.sensor_handler import SensorCommandHandler
 from .security.alarm_handler import AlarmCommandHandler
@@ -21,23 +14,19 @@ class SecurityHandler:
 
     def __init__(
         self,
-        sensor_service: SensorService,
-        zone_service: ZoneService,
-        mode_service: ModeService,
-        alarm_service: AlarmService,
-        auth_service: AuthService,
-        camera_service: CameraService,
-        logger: SystemLogger,
+        sensor_service,
+        zone_service,
+        mode_service,
+        alarm_service,
+        auth_service,
+        camera_service,
+        logger,
         *,
         door_state_supplier: Callable[[], bool],
     ):
-        self._sensor_service = sensor_service
-        self._zone_service = zone_service
-        self._mode_service = mode_service
-        self._alarm_service = alarm_service
-        self._auth_service = auth_service
-        self._camera_service = camera_service
-        self._logger = logger
+        self._mode = mode_service
+        self._alarm = alarm_service
+        self._auth = auth_service
         self._door_state_supplier = door_state_supplier
         self._zone_handler = ZoneCommandHandler(
             zone_service, sensor_service, auth_service
@@ -52,75 +41,60 @@ class SecurityHandler:
     # --- Arm / Disarm -------------------------------------------------
     def arm_system(self, mode="AWAY", **_) -> Dict[str, Any]:
         if self._door_state_supplier():
-            return {
-                "success": False,
-                "message": "Cannot arm, a door or window is open.",
-            }
-        return self._mode_service.arm_system(
-            mode=mode, user=self._auth_service.current_user
-        )
+            return {"success": False, "message": "Cannot arm, door/window open."}
+        return self._mode.arm_system(mode=mode, user=self._auth.current_user)
 
     def disarm_system(self, **_) -> Dict[str, Any]:
-        return self._mode_service.disarm_system(self._zone_service)
+        return self._mode.disarm_system(self._zone_handler._zones)
 
     def panic(self, **_) -> Dict[str, Any]:
-        return self._alarm_service.panic()
+        return self._alarm.panic()
 
     # --- Zones --------------------------------------------------------
-    def get_safety_zones(self, **_) -> Dict[str, Any]:
-        return self._zone_handler.get_zones()
+    def get_safety_zones(self, **kw) -> Dict[str, Any]:
+        return self._zone_handler.get_zones(**kw)
 
-    def arm_zone(self, zone_id=None, **_) -> Dict[str, Any]:
-        return self._zone_handler.arm_zone(zone_id)
+    def arm_zone(self, **kw) -> Dict[str, Any]:
+        return self._zone_handler.arm_zone(**kw)
 
-    def disarm_zone(self, zone_id=None, **_) -> Dict[str, Any]:
-        return self._zone_handler.disarm_zone(zone_id)
+    def disarm_zone(self, **kw) -> Dict[str, Any]:
+        return self._zone_handler.disarm_zone(**kw)
 
-    def create_safety_zone(self, name="", sensors=None, **_) -> Dict[str, Any]:
-        return self._zone_handler.create_zone(name=name, sensors=sensors)
+    def create_safety_zone(self, **kw) -> Dict[str, Any]:
+        return self._zone_handler.create_zone(**kw)
 
-    def update_safety_zone(self, zone_id=None, name=None, sensors=None, **_) -> Dict[str, Any]:
-        return self._zone_handler.update_zone(
-            zone_id=zone_id, name=name, sensors=sensors
-        )
+    def update_safety_zone(self, **kw) -> Dict[str, Any]:
+        return self._zone_handler.update_zone(**kw)
 
-    def delete_safety_zone(self, zone_id=None, **_) -> Dict[str, Any]:
-        return self._zone_handler.delete_zone(zone_id=zone_id)
+    def delete_safety_zone(self, **kw) -> Dict[str, Any]:
+        return self._zone_handler.delete_zone(**kw)
 
     # --- Sensors / Devices -------------------------------------------
-    def get_sensors(self, **_) -> Dict[str, Any]:
-        return self._sensor_handler.get_sensors()
+    def get_sensors(self, **kw) -> Dict[str, Any]:
+        return self._sensor_handler.get_sensors(**kw)
 
-    def get_all_devices_status(self, **_) -> Dict[str, Any]:
-        return self._sensor_handler.get_devices()
+    def get_all_devices_status(self, **kw) -> Dict[str, Any]:
+        return self._sensor_handler.get_devices(**kw)
 
-    def arm_sensor(self, sensor_id="", **_) -> Dict[str, Any]:
-        return self._sensor_handler.arm_sensor(sensor_id=sensor_id)
+    def arm_sensor(self, **kw) -> Dict[str, Any]:
+        return self._sensor_handler.arm_sensor(**kw)
 
-    def disarm_sensor(self, sensor_id="", **_) -> Dict[str, Any]:
-        return self._sensor_handler.disarm_sensor(sensor_id=sensor_id)
+    def disarm_sensor(self, **kw) -> Dict[str, Any]:
+        return self._sensor_handler.disarm_sensor(**kw)
 
     def poll_sensors(self, **_) -> Dict[str, Any]:
         result = self._sensor_handler.poll_sensors()
         if result.get("intrusion_detected"):
-            sensor_id = result.get("sensor_id")
-            alarm = self._alarm_handler.trigger(sensor_id=sensor_id)
-            return {
-                "success": True,
-                "intrusion_detected": True,
-                "sensor_id": sensor_id,
-                "alarm": alarm,
-            }
+            alarm = self._alarm_handler.trigger(sensor_id=result.get("sensor_id"))
+            return {**result, "alarm": alarm}
         return result
 
     # --- Alarm lifecycle ---------------------------------------------
-    def trigger_alarm(self, sensor_id="", **_) -> Dict[str, Any]:
-        return self._alarm_handler.trigger(sensor_id=sensor_id)
+    def trigger_alarm(self, **kw) -> Dict[str, Any]:
+        return self._alarm_handler.trigger(**kw)
 
     def clear_alarm(self, **_) -> Dict[str, Any]:
         return self._alarm_handler.clear()
 
     def get_alarm_status(self, **_) -> Dict[str, Any]:
         return self._alarm_handler.status()
-
-
