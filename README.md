@@ -119,6 +119,50 @@ While `coverage.py` reports line coverage by default, you can inspect per-functi
 
 For ad-hoc inspection of a single module, you can run `coverage run -m pytest tests/unit/... && coverage report src/path/to/file.py` to limit the output to the methods you care about.
 
+#### JSON-Based Method Coverage (scripted)
+If you prefer a table that lists **every method in a file with its covered / missing lines**, use the helper script we ship in `tools/method_coverage_json.py`:
+
+```bash
+# 1) Produce coverage.json (the script uses this file)
+pytest --cov=. --cov-report=json
+
+# 2) Generate the method-level table for a given module
+python tools/method_coverage_json.py \
+  --file src/interfaces/pages/safety_zone_page/zone_manager.py
+#     (you can also pass paths without the leading src/, e.g. --file interfaces/pages/... )
+```
+
+The script parses the module via `ast`, cross-references `coverage.json`, and prints a Markdown table such as:
+
+```
+| Method | Total | Covered | Missing | Coverage |
+| --- | ---: | ---: | ---: | ---: |
+| __init__ | 12 | 12 | 0 | 100.0% |
+| handle_device_click_info | 20 | 18 | 2 | 90.0% |
+...
+```
+
+Use `--format json` if you prefer machine-readable output, or point `--file` at any other module that appears in `coverage.json`.
+
+#### Class-Level Coverage
+Need a class-by-class breakdown like `ConfigurationManager`, `StorageManager`, etc.? Run the companion script `tools/class_coverage_json.py`:
+
+```bash
+# make sure coverage.json is fresh
+pytest --cov=. --cov-report=json
+
+# produce Markdown for every file beneath src/interfaces/pages/
+python tools/class_coverage_json.py \
+  --path-prefix src/interfaces/pages/ \
+  --output class_coverage_report.md
+
+# or focus on a single module
+python tools/class_coverage_json.py \
+  --file interfaces/pages/safehome_mode_configure_page/safehome_mode_configure_page.py
+```
+
+Use `--format json` to emit machine-readable output or pass `--output somefile.md` to save the Markdown tables.
+
 ## ⚠️ Notes
 - **Control Panel** simulates local hardware devices; operate the buttons by clicking with your mouse.
 - **Web Interface** simulates remote access; interact by clicking icons on the Floor Plan.

@@ -41,6 +41,10 @@ class DisplayHandler:
     def show_wrong_password(self, attempts: int):
         self._messages.show_wrong_password(attempts)
 
+    def show_panic_verify_error(self):
+        """Display wrong password message during panic verification."""
+        self._messages.show_panic_verify_error()
+
     def show_stopping(self):
         self._lock.cancel()
         self._messages.show_stopping()

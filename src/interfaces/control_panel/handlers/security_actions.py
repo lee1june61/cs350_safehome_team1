@@ -56,7 +56,8 @@ class SecurityActions:
         if res.get("locked"):
             seconds = res.get("seconds_remaining") or res.get("lock_duration")
             msg = res.get("message", "Locked")
-            self._panel.show_panic_lock(msg, int(seconds or 0))
+            clean_msg = msg if len(msg) <= 16 else "Too many attempts"
+            self._panel.show_panic_lock(clean_msg, int(seconds or 0))
         else:
             attempts = res.get("attempts_remaining")
             detail = f"{attempts} attempts left" if attempts is not None else ""
