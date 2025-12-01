@@ -53,6 +53,7 @@ class CameraListPage(Page):
             return
 
         self._web_interface.set_context("camera_id", cam_id)
+        self._web_interface.set_context("camera_back_page", "camera_list")
         self.navigate_to("single_camera_view")
 
     def _load(self):

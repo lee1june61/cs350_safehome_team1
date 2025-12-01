@@ -1,8 +1,9 @@
 """
 Image loader for the FloorPlan component.
 """
-from pathlib import Path
 from typing import Optional
+from pathlib import Path
+from src.resources import get_image
 
 try:
     from PIL import Image, ImageTk
@@ -11,19 +12,14 @@ except ImportError:
     HAS_PIL = False
 
 def find_image() -> Optional[Path]:
-    """Find floorplan.png from multiple possible locations."""
-    src_dir = Path(__file__).resolve().parent.parent.parent
+    """Locate the packaged floorplan image."""
     candidates = [
-        src_dir / "resources" / "images" / "floorplan.png",
-        src_dir.parent / "virtual_device_v4" / "floorplan.png",
-        src_dir.parent / "virtual_device_v4" / "virtual_device_v4" / "floorplan.png", # Added from utils.py
+        get_image("floorplan.png"),
         Path.cwd() / "src" / "resources" / "images" / "floorplan.png",
-        Path.cwd() / "virtual_device_v4" / "floorplan.png",
-        Path.cwd() / "virtual_device_v4" / "virtual_device_v4" / "floorplan.png", # Added from utils.py
     ]
-    for p in candidates:
-        if p.exists():
-            return p
+    for path in candidates:
+        if path.exists():
+            return path
     return None
 
 def load_floor_plan_image(canvas_width: int, canvas_height: int) -> Optional[ImageTk.PhotoImage]:

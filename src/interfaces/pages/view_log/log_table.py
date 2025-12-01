@@ -61,3 +61,4 @@ class LogTable:
             return "disarmed"
         return "normal"
 
+

@@ -6,11 +6,11 @@ class SystemSettingsValidator:
     Handles validation logic for system settings input fields.
     """
     def validate(self, 
-                 web_pw1: tk.StringVar, web_pw1_confirm: tk.StringVar,
-                 web_pw2: tk.StringVar, web_pw2_confirm: tk.StringVar,
+                 web_pw1_current: tk.StringVar, web_pw1: tk.StringVar, web_pw1_confirm: tk.StringVar,
+                 web_pw2_current: tk.StringVar, web_pw2: tk.StringVar, web_pw2_confirm: tk.StringVar,
 
-                 master_pw: tk.StringVar, master_pw_confirm: tk.StringVar,
-                 guest_pw: tk.StringVar, guest_pw_confirm: tk.StringVar,
+                 master_pw_current: tk.StringVar, master_pw: tk.StringVar, master_pw_confirm: tk.StringVar,
+                 guest_pw_current: tk.StringVar, guest_pw: tk.StringVar, guest_pw_confirm: tk.StringVar,
 
                  delay_time: tk.StringVar, monitor_phone: tk.StringVar) -> Tuple[bool, str]:
         
@@ -18,12 +18,16 @@ class SystemSettingsValidator:
         
         # Web passwords
         if web_pw1.get():
+            if not web_pw1_current.get():
+                errors.append("Current Web Password 1 is required")
             if len(web_pw1.get()) < 8:
                 errors.append("Web Password 1 must be at least 8 characters")
             elif web_pw1.get() != web_pw1_confirm.get():
                 errors.append("Web Password 1 confirmation doesn't match")
         
         if web_pw2.get():
+            if not web_pw2_current.get():
+                errors.append("Current Web Password 2 is required")
             if len(web_pw2.get()) < 8:
                 errors.append("Web Password 2 must be at least 8 characters")
             elif web_pw2.get() != web_pw2_confirm.get():
@@ -31,6 +35,8 @@ class SystemSettingsValidator:
         
         # Master password
         if master_pw.get():
+            if not master_pw_current.get():
+                errors.append("Current master password is required")
             if not master_pw.get().isdigit() or len(master_pw.get()) != 4:
                 errors.append("Master password must be exactly 4 digits")
             elif master_pw.get() != master_pw_confirm.get():
@@ -38,6 +44,8 @@ class SystemSettingsValidator:
         
         # Guest password (optional)
         if guest_pw.get():
+            if not guest_pw_current.get():
+                errors.append("Current guest password is required")
             if not guest_pw.get().isdigit() or len(guest_pw.get()) != 4:
                 errors.append("Guest password must be exactly 4 digits")
             elif guest_pw.get() != guest_pw_confirm.get():

@@ -1,6 +1,7 @@
 import tkinter as tk
-from typing import Optional, Any
 from pathlib import Path
+from typing import Optional, Any
+from src.resources import get_image
 
 try:
     from PIL import Image, ImageTk
@@ -9,13 +10,12 @@ except ImportError:
     HAS_PIL = False
 
 def find_floorplan_path() -> Optional[str]:
-    """Find the floorplan.png file."""
-    base_paths = [
-        Path(__file__).parent.parent.parent.parent.parent /
-        "virtual_device_v4" / "floorplan.png",
-        Path("virtual_device_v4/floorplan.png"),
+    """Find the packaged floorplan.png file."""
+    candidates = [
+        get_image("floorplan.png"),
+        Path.cwd() / "src" / "resources" / "images" / "floorplan.png",
     ]
-    for path in base_paths:
+    for path in candidates:
         if path.exists():
             return str(path.resolve())
     return None

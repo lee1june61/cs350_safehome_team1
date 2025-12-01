@@ -15,7 +15,8 @@ class SingleCameraViewUIBuilder:
 
     def build(self):
         """Build the complete UI."""
-        self._page._create_header("Camera View", back_page="camera_list")
+        header = self._page._create_header("Camera View", back_page="camera_list")
+        self._page._back_nav.register_button(getattr(header, "back_button", None))
 
         content = ttk.Frame(self._page._frame)
         content.pack(expand=True, fill="both", padx=20, pady=10)
@@ -58,30 +59,30 @@ class SingleCameraViewUIBuilder:
         pf = ttk.Frame(ptz)
         pf.pack()
         ttk.Label(pf, text="Pan:", font=('Arial', 9)).pack(side="left", padx=2)
-        ttk.Button(pf, text="◄ L", command=lambda: self._page._pan("L"), width=6).pack(side="left", padx=2)
-        ttk.Button(pf, text="R ►", command=lambda: self._page._pan("R"), width=6).pack(side="left", padx=2)
+        ttk.Button(pf, text="◄ L", command=lambda: self._page.controls.pan("L"), width=6).pack(side="left", padx=2)
+        ttk.Button(pf, text="R ►", command=lambda: self._page.controls.pan("R"), width=6).pack(side="left", padx=2)
 
         # Tilt controls
         tf = ttk.Frame(ptz)
         tf.pack(pady=5)
         ttk.Label(tf, text="Tilt:", font=('Arial', 9)).pack(side="left", padx=2)
-        ttk.Button(tf, text="↑ Up", command=lambda: self._page._tilt("up"), width=6).pack(side="left", padx=2)
-        ttk.Button(tf, text="↓ Down", command=lambda: self._page._tilt("down"), width=6).pack(side="left", padx=2)
+        ttk.Button(tf, text="↑ Up", command=lambda: self._page.controls.tilt("up"), width=6).pack(side="left", padx=2)
+        ttk.Button(tf, text="↓ Down", command=lambda: self._page.controls.tilt("down"), width=6).pack(side="left", padx=2)
 
         # Zoom controls
         zf = ttk.Frame(ptz)
         zf.pack(pady=5)
         ttk.Label(zf, text="Zoom:", font=('Arial', 9)).pack(side="left", padx=2)
-        ttk.Button(zf, text="+ In", command=lambda: self._page._zoom("in"), width=6).pack(side="left", padx=2)
-        ttk.Button(zf, text="- Out", command=lambda: self._page._zoom("out"), width=6).pack(side="left", padx=2)
+        ttk.Button(zf, text="+ In", command=lambda: self._page.controls.zoom("in"), width=6).pack(side="left", padx=2)
+        ttk.Button(zf, text="- Out", command=lambda: self._page.controls.zoom("out"), width=6).pack(side="left", padx=2)
 
     def _build_actions_section(self, parent):
         """Build enable/disable actions."""
         act = ttk.LabelFrame(parent, text="Actions", padding=8)
         act.pack(fill="x", pady=5)
-        self._page._btn_en = ttk.Button(act, text="Enable", command=self._page._enable, width=12)
+        self._page._btn_en = ttk.Button(act, text="Enable", command=self._page.controls.enable, width=12)
         self._page._btn_en.pack(pady=2)
-        self._page._btn_dis = ttk.Button(act, text="Disable", command=self._page._disable, width=12)
+        self._page._btn_dis = ttk.Button(act, text="Disable", command=self._page.controls.disable, width=12)
         self._page._btn_dis.pack(pady=2)
 
     def _build_password_section(self, parent):

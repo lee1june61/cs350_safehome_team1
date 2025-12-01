@@ -3,3 +3,4 @@ from .view_log_page import ViewLogPage
 
 __all__ = ["ViewLogPage"]
 
+

@@ -67,3 +67,4 @@ class ButtonActions:
         self._panel.set_display_short_message1("PANIC!")
         self._panel.set_display_short_message2("Calling service...")
 
+

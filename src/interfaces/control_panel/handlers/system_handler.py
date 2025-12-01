@@ -39,3 +39,4 @@ class SystemHandler:
         """Get current system status."""
         return self._panel.send_request("get_status")
 
+
