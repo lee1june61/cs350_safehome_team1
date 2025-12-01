@@ -2,16 +2,16 @@
 
 import tkinter as tk
 from typing import Dict, Optional, Callable, Set
-from .floor_plan_data import DEVICES
-from .floor_plan_renderer import load_image, draw_device
+from .floor_plan_renderer import load_image
 from .floor_plan_selection import FloorPlanSelectionMixin
+from .floor_plan_device_layer import DeviceLayer, FloorPlanGeometry
 
 
 class FloorPlan(FloorPlanSelectionMixin):
     """Floor plan with clickable device icons."""
 
-    ORIGINAL_IMG_WIDTH = 607
-    ORIGINAL_IMG_HEIGHT = 373
+    ORIGINAL_IMG_WIDTH = FloorPlanGeometry.ORIGINAL_IMG_WIDTH
+    ORIGINAL_IMG_HEIGHT = FloorPlanGeometry.ORIGINAL_IMG_HEIGHT
 
     def __init__(self, parent: tk.Widget, width: int = 450, height: int = 280,
                  show_cameras: bool = True, show_sensors: bool = True):
@@ -23,12 +23,12 @@ class FloorPlan(FloorPlanSelectionMixin):
         self._on_sensor_click: Optional[Callable] = None
         self._states: Dict[str, bool] = {}
         self._selected: Set[str] = set()
-        self._show_cameras, self._show_sensors = show_cameras, show_sensors
         self._select_mode = False
         self._device_positions: Dict[str, tuple[int, int, str]] = {}
         self._drag_start, self._drag_rect, self._drag_bound = None, None, False
         self._img_x_off, self._img_y_off = 0, 0
         self._img_scale_x, self._img_scale_y = 1.0, 1.0
+        self._device_layer = DeviceLayer(show_cameras, show_sensors)
 
     def create(self) -> tk.Canvas:
         canvas_width = max(self._w, self.ORIGINAL_IMG_WIDTH)
@@ -49,21 +49,15 @@ class FloorPlan(FloorPlanSelectionMixin):
         else:
             self._photo = result if result else None
             self._img_x_off, self._img_y_off, self._img_scale_x, self._img_scale_y = 0, 0, 1.0, 1.0
-        self._draw_devices()
-
-    def _draw_devices(self):
-        self._device_positions.clear()
-        for dev_id, (nx, ny, dtype) in DEVICES.items():
-            if dtype == "camera" and not self._show_cameras:
-                continue
-            if dtype in ("sensor", "motion", "door_sensor") and not self._show_sensors:
-                continue
-            orig_x, orig_y = nx * self.ORIGINAL_IMG_WIDTH, ny * self.ORIGINAL_IMG_HEIGHT
-            x = int(self._img_x_off + orig_x * self._img_scale_x)
-            y = int(self._img_y_off + orig_y * self._img_scale_y)
-            armed, selected = self._states.get(dev_id, False), dev_id in self._selected
-            self._device_positions[dev_id] = (x, y, dtype)
-            draw_device(self._canvas, dev_id, x, y, dtype, armed, selected, self._handle_click)
+        if self._canvas:
+            self._device_positions = self._device_layer.render(
+                canvas=self._canvas,
+                offsets=(self._img_x_off, self._img_y_off),
+                scale=(self._img_scale_x, self._img_scale_y),
+                states=self._states,
+                selected=self._selected,
+                click_handler=self._handle_click,
+            )
 
     def _handle_click(self, dev_id: str, dtype: str):
         if self._select_mode and dtype in ("sensor", "motion", "door_sensor"):
@@ -105,7 +99,9 @@ class FloorPlan(FloorPlanSelectionMixin):
         self._draw()
 
     def get_devices(self, dtype: str = None) -> list:
+        from .floor_plan_data import DEVICES  # local import to avoid global pollution
         return [d for d, (_, _, t) in DEVICES.items() if t == dtype] if dtype else list(DEVICES.keys())
 
     def get_sensors(self) -> list:
+        from .floor_plan_data import DEVICES  # local import avoids import cycles during tests
         return [d for d, (_, _, t) in DEVICES.items() if t in ("sensor", "motion", "door_sensor")]

@@ -9,9 +9,10 @@ from .control_panel_ui_layout import (
     create_led_panel,
 )
 from .control_panel_buttons import create_button_panel
+from .control_panel_buttons_base import ControlPanelButtonCallbacks
 
 
-class DeviceControlPanelAbstract(tk.Toplevel, ABC):
+class DeviceControlPanelAbstract(ControlPanelButtonCallbacks, tk.Toplevel, ABC):
     """Abstract Control Panel GUI."""
 
     def __init__(self, master=None):
@@ -84,51 +85,3 @@ class DeviceControlPanelAbstract(tk.Toplevel, ABC):
 
     def set_powered_led(self, on: bool):
         self.led_power.config(bg="green" if on else "light gray")
-
-    @abstractmethod
-    def button1(self):
-        pass
-
-    @abstractmethod
-    def button2(self):
-        pass
-
-    @abstractmethod
-    def button3(self):
-        pass
-
-    @abstractmethod
-    def button4(self):
-        pass
-
-    @abstractmethod
-    def button5(self):
-        pass
-
-    @abstractmethod
-    def button6(self):
-        pass
-
-    @abstractmethod
-    def button7(self):
-        pass
-
-    @abstractmethod
-    def button8(self):
-        pass
-
-    @abstractmethod
-    def button9(self):
-        pass
-
-    @abstractmethod
-    def button_star(self):
-        pass
-
-    @abstractmethod
-    def button0(self):
-        pass
-
-    @abstractmethod
-    def button_sharp(self):
-        pass

@@ -17,6 +17,7 @@ class DeviceCamera(threading.Thread, InterfaceCamera):
         self.cameraId = 0
         self.time = 0
         self.pan = 0
+        self.tilt = 0
         self.zoom = 2
         self.imgSource = None
         self.centerWidth = 0
@@ -65,6 +66,14 @@ class DeviceCamera(threading.Thread, InterfaceCamera):
                 view += "center"
             else:
                 view += f"left {-self.pan}"
+
+            view += ", "
+            if self.tilt > 0:
+                view += f"up {self.tilt}"
+            elif self.tilt == 0:
+                view += "level"
+            else:
+                view += f"down {-self.tilt}"
             
             # Create the view image (500x500)
             imgView = Image.new('RGB', (self.RETURN_SIZE, self.RETURN_SIZE), 'black')
@@ -73,11 +82,12 @@ class DeviceCamera(threading.Thread, InterfaceCamera):
  
                 zoomed = self.SOURCE_SIZE * (10 - self.zoom) // 10
                 panned = self.pan * self.SOURCE_SIZE // 5
+                tilted = self.tilt * self.SOURCE_SIZE // 5
                 
                 left = self.centerWidth + panned - zoomed
-                top = self.centerHeight - zoomed
+                top = self.centerHeight - zoomed - tilted
                 right = self.centerWidth + panned + zoomed
-                bottom = self.centerHeight + zoomed
+                bottom = self.centerHeight + zoomed - tilted
                 
                 # Crop and resize to fill the view
                 try:
@@ -145,6 +155,14 @@ class DeviceCamera(threading.Thread, InterfaceCamera):
             if self.zoom < 1:
                 self.zoom += 1
                 return False
+            return True
+
+    def set_tilt(self, angle: int) -> bool:
+        """Set tilt to an absolute angle (synchronized)."""
+        with self._lock:
+            if angle < -5 or angle > 5:
+                return False
+            self.tilt = angle
             return True
     
     def _tick(self):

@@ -1,105 +1,61 @@
 """Display and LED handler for control panel."""
 from typing import TYPE_CHECKING
 
+from .display.messages import DisplayMessages
+from .display.leds import LedController
+from .display.lock_countdown import LockCountdown
+
 if TYPE_CHECKING:
     from ..control_panel import SafeHomeControlPanel
 
 
 class DisplayHandler:
-    """Handles display and LED updates."""
+    """Coordinates text display, LEDs, and lock countdown."""
 
     def __init__(self, panel: "SafeHomeControlPanel"):
-        self._panel = panel
-        self._lock_job = None
-        self._lock_remaining = 0
+        self._messages = DisplayMessages(panel)
+        self._leds = LedController(panel)
+        self._lock = LockCountdown(panel, self._messages)
 
     def init_off_display(self):
-        """Initialize display for OFF state."""
-        self.cancel_lock_countdown()
-        self._panel.set_powered_led(False)
-        self._panel.set_armed_led(False)
-        self._panel.set_display_short_message1("System OFF")
-        self._panel.set_display_short_message2("Press 1 to start")
-        self._panel.set_display_away(False)
-        self._panel.set_display_stay(False)
+        self._lock.cancel()
+        self._leds.init_off()
+        self._messages.init_off()
 
     def show_booting(self):
-        """Show booting message."""
-        self.cancel_lock_countdown()
-        self._panel.set_display_short_message1("Starting...")
-        self._panel.set_display_short_message2("Please wait")
-        self._panel.set_powered_led(True)
+        self._lock.cancel()
+        self._leds.show_booting()
+        self._messages.show_booting()
 
     def show_idle(self):
-        """Show idle/login prompt."""
-        self.cancel_lock_countdown()
-        self._panel.set_display_short_message1("Enter password")
-        self._panel.set_display_short_message2("")
+        self._lock.cancel()
+        self._messages.show_idle()
 
     def show_welcome(self, access_level: str):
-        """Show welcome message after login."""
-        self.cancel_lock_countdown()
-        self._panel.set_display_short_message1(f"Welcome ({access_level})")
-        self._panel.set_display_short_message2("7=Away 8=Home")
+        self._lock.cancel()
+        self._messages.show_welcome(access_level)
 
     def show_locked(self):
-        """Show locked message."""
-        self._panel.set_display_short_message1("LOCKED")
-        if self._lock_remaining <= 0:
-            self._panel.set_display_short_message2("Wait 60 sec")
+        self._messages.show_locked()
 
     def show_wrong_password(self, attempts: int):
-        """Show wrong password message."""
-        self._panel.set_display_short_message1("Wrong password")
-        self._panel.set_display_short_message2(f"{attempts} tries left")
+        self._messages.show_wrong_password(attempts)
 
     def show_stopping(self):
-        """Show stopping message."""
-        self.cancel_lock_countdown()
-        self._panel.set_display_short_message1("Stopping...")
-        self._panel.set_display_short_message2("Please wait")
+        self._lock.cancel()
+        self._messages.show_stopping()
 
     def show_resetting(self):
-        """Show resetting message."""
-        self.cancel_lock_countdown()
-        self._panel.set_display_short_message1("Resetting...")
-        self._panel.set_display_short_message2("Please wait")
+        self._lock.cancel()
+        self._messages.show_resetting()
 
     def update_leds_from_status(self, data: dict):
-        """Update LEDs based on system status."""
-        armed = data.get("armed", False)
-        mode = data.get("mode", "DISARMED")
-        self._panel.set_armed_led(armed)
-        self._panel.set_display_away(mode == "AWAY")
-        self._panel.set_display_stay(mode == "HOME")
+        self._leds.update_from_status(data)
 
-    # ------------------------------------------------------------------ #
-    # Lock countdown helpers
-    # ------------------------------------------------------------------ #
     def start_lock_countdown(self, total_seconds: int):
-        """Start (or restart) the lock countdown display."""
-        total_seconds = max(1, int(total_seconds))
-        self.cancel_lock_countdown()
-        self._lock_remaining = total_seconds
-        self._panel.set_display_short_message1("LOCKED")
-        self._update_lock_countdown()
+        self._lock.start(total_seconds)
 
     def cancel_lock_countdown(self):
-        """Stop any active countdown updates."""
-        if self._lock_job:
-            self._panel.after_cancel(self._lock_job)
-            self._lock_job = None
-        self._lock_remaining = 0
-
-    def _update_lock_countdown(self):
-        if self._lock_remaining <= 0:
-            self._panel.set_display_short_message2("Wait 00 sec")
-            self.cancel_lock_countdown()
-            return
-        self._panel.set_display_short_message2(
-            f"Wait {self._lock_remaining:02d} sec"
-        )
-        self._lock_remaining -= 1
-        self._lock_job = self._panel.after(1000, self._update_lock_countdown)
+        self._lock.cancel()
 
 

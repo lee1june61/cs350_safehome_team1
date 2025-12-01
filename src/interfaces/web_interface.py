@@ -42,8 +42,10 @@ class WebInterface(tk.Toplevel):
         if page_name == 'login':
             self.clear_context()
 
-        if self._current_page and self._current_page in self._pages:
-            self._pages[self._current_page].hide()
+        # Hide any currently visible page before showing the next one.
+        for page in self._pages.values():
+            if page.is_visible:
+                page.hide()
 
         if page_name not in self._pages:
             page_class = PAGE_CLASSES.get(page_name)

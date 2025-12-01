@@ -4,10 +4,10 @@ from typing import Any, Callable
 
 def save_all_settings(
     page_instance: Any, # Use Any to avoid circular import with Page
-    web_pw1: tk.StringVar, web_pw1_confirm: tk.StringVar,
-    web_pw2: tk.StringVar, web_pw2_confirm: tk.StringVar,
-    master_pw: tk.StringVar, master_pw_confirm: tk.StringVar,
-    guest_pw: tk.StringVar, guest_pw_confirm: tk.StringVar,
+    web_pw1_current: tk.StringVar, web_pw1: tk.StringVar, web_pw1_confirm: tk.StringVar,
+    web_pw2_current: tk.StringVar, web_pw2: tk.StringVar, web_pw2_confirm: tk.StringVar,
+    master_pw_current: tk.StringVar, master_pw: tk.StringVar, master_pw_confirm: tk.StringVar,
+    guest_pw_current: tk.StringVar, guest_pw: tk.StringVar, guest_pw_confirm: tk.StringVar,
     delay_time: tk.StringVar, monitor_phone: tk.StringVar,
     status_label: ttk.Label,
     clear_password_fields_func: Callable[[], None],
@@ -17,10 +17,10 @@ def save_all_settings(
     Handles saving all system settings.
     """
     valid, error = validator.validate(
-        web_pw1, web_pw1_confirm,
-        web_pw2, web_pw2_confirm,
-        master_pw, master_pw_confirm,
-        guest_pw, guest_pw_confirm,
+        web_pw1_current, web_pw1, web_pw1_confirm,
+        web_pw2_current, web_pw2, web_pw2_confirm,
+        master_pw_current, master_pw, master_pw_confirm,
+        guest_pw_current, guest_pw, guest_pw_confirm,
         delay_time, monitor_phone
     )
     if not valid:

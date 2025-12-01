@@ -1,6 +1,6 @@
 """ThumbnailViewPage - All cameras thumbnails (SRS V.3.e)"""
 import tkinter as tk
-from tkinter import ttk, simpledialog, messagebox
+from tkinter import ttk
 from PIL import ImageTk
 from ..components.page import Page
 
@@ -14,7 +14,6 @@ class ThumbnailViewPage(Page):
         self._content.pack(expand=True, fill='both', padx=20, pady=10)
         self._frames = []
         self._images = []  # Keep references to images
-        self._camera_meta = {}
     
     def _create_grid(self):
         for f in self._frames: f.destroy()
@@ -23,42 +22,19 @@ class ThumbnailViewPage(Page):
         
         res = self.send_to_system('get_thumbnails')
         cams = res.get('data', {}) if res.get('success') else {}
-        self._camera_meta = cams
         
         cols = 3
         for i, (cam_id, cam) in enumerate(cams.items()):
             r, c = i // cols, i % cols
-            if isinstance(cam, dict):
-                is_locked = cam.get('locked', False)
-                location = cam.get('location', '')
-                is_enabled = cam.get('enabled', True)
-            else:
-                is_locked = False
-                location = ''
-                is_enabled = True
+            is_locked = cam.get('locked', False)
             
-            status_icon = "✗" if not is_enabled else "✓"
-            lock_icon = " 🔒" if is_locked else ""
-            base_title = f"{cam_id}: {location}" if location else cam_id
-            title_loc = f"{status_icon} {base_title}{lock_icon}"
-            f = ttk.LabelFrame(self._content, text=title_loc)
+            f = ttk.LabelFrame(self._content, text=f"{cam_id}: {cam.get('location', '')}")
             f.grid(row=r, column=c, padx=8, pady=8, sticky='nsew')
             self._content.columnconfigure(c, weight=1)
             self._content.rowconfigure(r, weight=1)
             
             # Get thumbnail image
-            if not is_enabled:
-                disabled_label = ttk.Label(
-                    f,
-                    text="🚫 DISABLED\n\nEnable camera to view.",
-                    font=('Arial', 12, 'bold'),
-                    foreground='#666',
-                    anchor='center',
-                    justify='center'
-                )
-                disabled_label.pack(expand=True, fill='both', padx=5, pady=5)
-                disabled_label.bind('<Button-1>', lambda e, cid=cam_id: self._view(cid))
-            elif is_locked:
+            if is_locked:
                 # Show locked indicator
                 locked_label = ttk.Label(
                     f, 
@@ -99,17 +75,8 @@ class ThumbnailViewPage(Page):
             ttk.Label(self._content, text="No cameras available", font=('Arial', 14)).pack(pady=50)
     
     def _view(self, cam_id):
-        meta = self._camera_meta.get(cam_id, {})
-        if meta.get('locked'):
-            pw = simpledialog.askstring("Password", f"Password for {cam_id}:", show="*")
-            if not pw:
-                return
-            res = self.send_to_system('verify_camera_password', camera_id=cam_id, password=pw)
-            if not res.get('success'):
-                messagebox.showerror("Verification Failed", res.get('message', "Incorrect password."))
-                return
-
         self._web_interface.set_context('camera_id', cam_id)
+        self._web_interface.set_context('camera_back_page', 'thumbnail_view')
         self.navigate_to('single_camera_view')
     
     def on_show(self): 

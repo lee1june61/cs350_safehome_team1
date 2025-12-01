@@ -4,9 +4,10 @@ Defines the interface for physical control panels or mobile apps.
 """
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any
+from .control_panel_optional import ControlPanelOptionalFeatures
 
 
-class DeviceControlPanelAbstract(ABC):
+class DeviceControlPanelAbstract(ControlPanelOptionalFeatures, ABC):
     """
     Abstract base class for control panel devices.
     Both physical control panels and mobile apps implement this interface.
@@ -86,38 +87,3 @@ class DeviceControlPanelAbstract(ABC):
         """
         pass
     
-    # Optional methods (can be overridden if needed)
-    
-    def show_camera_view(self, camera_id: int, frame_data: bytes):
-        """
-        Display camera view on control panel (optional).
-        Not all control panels have display capability.
-        
-        Args:
-            camera_id: Camera identifier
-            frame_data: Image frame data
-        """
-        pass
-    
-    def update_sensor_status(self, sensor_id: int, is_triggered: bool):
-        """
-        Update individual sensor status indicator (optional).
-        
-        Args:
-            sensor_id: Sensor identifier
-            is_triggered: Whether sensor is triggered
-        """
-        pass
-    
-    def clear_display(self):
-        """Clear all messages from display (optional)."""
-        pass
-    
-    def set_backlight(self, brightness: float):
-        """
-        Set display backlight brightness (optional).
-        
-        Args:
-            brightness: Brightness level 0.0 (off) to 1.0 (full)
-        """
-        pass

@@ -1,16 +1,13 @@
-<<<<<<< HEAD
-"""Resource assets for SafeHome."""
-=======
 """
 SafeHome Resources Package
-
-Contains static resources like images, icons, etc.
+--------------------------
+Provides access helpers for bundled static assets (images, icons, etc.).
 
 Structure:
 - images/
-  - floorplan.png   # House floor plan from virtual_device_v4
-  - camera.png      # Camera icon
-  - sensor.png      # Sensor icon
+  - floorplan.png
+  - camera.png
+  - sensor.png
 """
 from pathlib import Path
 
@@ -35,4 +32,3 @@ def get_image(name: str) -> Path:
         Path to the image file
     """
     return get_images_path() / name
->>>>>>> origin/main

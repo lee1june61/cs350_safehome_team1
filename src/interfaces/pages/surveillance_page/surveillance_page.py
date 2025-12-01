@@ -42,12 +42,14 @@ class SurveillancePage(Page):
     def _on_device_click(self, dev_id: str, dev_type: str):
         if dev_type == 'camera':
             self._web_interface.set_context('camera_id', dev_id)
+            self._web_interface.set_context('camera_back_page', 'surveillance')
             self.navigate_to('single_camera_view')
     
     def _on_dblclick(self, e):
         sel = self._list.curselection()
         if sel and sel[0] < len(self._cams):
             self._web_interface.set_context('camera_id', self._cams[sel[0]]['id'])
+            self._web_interface.set_context('camera_back_page', 'surveillance')
             self.navigate_to('single_camera_view')
     
     def _load(self):
