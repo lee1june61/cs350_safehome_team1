@@ -8,6 +8,9 @@ from ..services.settings_service import SettingsService
 from ..services.alarm_service import AlarmService
 from ..services.auth_service import AuthService
 
+DEFAULT_MASTER_PIN = "1234"
+DEFAULT_GUEST_PIN = "5678"
+
 
 class SettingsHandler:
     """Handles system settings queries and updates."""
@@ -45,7 +48,9 @@ class SettingsHandler:
         max_login_attempts: Optional[int] = None,
         session_timeout: Optional[int] = None,
         master_password: Optional[str] = None,
+        master_password_current: Optional[str] = None,
         guest_password: Optional[str] = None,
+        guest_password_current: Optional[str] = None,
         **_,
     ):
         result = self._settings_service.update_settings(
@@ -69,10 +74,69 @@ class SettingsHandler:
             self._auth_service.set_identity_contact(
                 settings.monitoring_service_phone
             )
+            if master_password:
+                if not master_password_current:
+                    return {
+                        "success": False,
+                        "message": "Current master password required",
+                    }
+                verify_master = self._auth_service.verify_control_panel_password(
+                    password=master_password_current, require_master=True
+                )
+                if not verify_master.get("success"):
+                    return {
+                        "success": False,
+                        "message": "Current master password incorrect",
+                    }
+            if guest_password:
+                if not guest_password_current:
+                    return {
+                        "success": False,
+                        "message": "Current guest password required",
+                    }
+                verify_guest = self._auth_service.verify_control_panel_password(
+                    password=guest_password_current, require_master=False
+                )
+                if not verify_guest.get("success"):
+                    return {
+                        "success": False,
+                        "message": "Current guest password incorrect",
+                    }
             if master_password or guest_password:
                 self._auth_service.update_control_panel_passwords(
                     master_password=master_password, guest_password=guest_password
                 )
         return result
+
+    def reset_settings(self, **_) -> Dict[str, Any]:
+        """Reset settings and control panel passwords to defaults."""
+        result = self._settings_service.reset_to_defaults(
+            user=self._auth_service.current_user
+        )
+        if not result.get("success"):
+            return result
+        settings = self._settings_service.get_settings()
+        self._alarm_service.update_from_settings(
+            settings.alarm_delay_time, settings.monitoring_service_phone
+        )
+        self._auth_service.update_policy(
+            max_attempts=settings.max_login_attempts or 3,
+            lock_duration=settings.system_lock_time or 60,
+        )
+        self._auth_service.set_identity_contact(settings.monitoring_service_phone)
+        self._auth_service.update_control_panel_passwords(
+            master_password=DEFAULT_MASTER_PIN, guest_password=DEFAULT_GUEST_PIN
+        )
+        return {
+            "success": True,
+            "data": {
+                "delay_time": settings.alarm_delay_time,
+                "monitor_phone": settings.monitoring_service_phone,
+                "homeowner_phone": settings.homeowner_phone,
+                "system_lock_time": settings.system_lock_time,
+                "max_login_attempts": settings.max_login_attempts,
+                "session_timeout": settings.session_timeout,
+            },
+        }
 
 

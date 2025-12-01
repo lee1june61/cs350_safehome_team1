@@ -4,26 +4,27 @@ Device definitions for the FloorPlan component.
 
 from typing import List
 
-# Device positions from floorplan.png analysis (image 607x373)
-# Coordinates are normalized (0.0 to 1.0)
-# Calculated from pixel coordinates: (pixel_x / 607, pixel_y / 373)
-# (device_id, (x, y, type))
+# Device positions from floorplan.png (coordinates as fraction 0-1)
+# Derived from physical measurements on a 16.06cm × 9.87cm print
+# Coordinates normalized using measured_x / 16.06, measured_y / 9.87
 DEVICES = {
-    # Cameras (gray triangles with C labels)
-    "C1": (0.334, 0.316, "camera"),  # (203, 118)
-    "C2": (0.507, 0.568, "camera"),  # (308, 212)
-    "C3": (0.750, 0.799, "camera"),  # (455, 298)
-    # Window Sensors (red rectangles)
-    "S1": (0.058, 0.241, "sensor"),      # (35, 90)
-    "S3": (0.058, 0.684, "sensor"),      # (35, 255)
-    "S4": (0.741, 0.113, "sensor"),      # (450, 42)
-    "S6": (0.959, 0.737, "sensor"),      # (582, 275)
-    # Door Sensors (teal dots)
-    "S2": (0.486, 0.121, "door_sensor"), # (295, 45)
-    "S5": (0.222, 0.925, "door_sensor"), # (135, 345)
-    # Motion Sensors (blue dots with M labels)
-    "M1": (0.115, 0.375, "motion"),  # (70, 140)
-    "M2": (0.470, 0.509, "motion"),  # (285, 190)
+    # Window Sensors (red S markers)
+    "S1": (0.042, 0.272, "sensor"),
+    "S2": (0.139, 0.075, "sensor"),
+    "S3": (0.044, 0.686, "sensor"),
+    "S4": (0.798, 0.078, "sensor"),
+    "S5": (0.951, 0.231, "sensor"),
+    "S6": (0.950, 0.691, "sensor"),
+    # Door Sensors (blue S markers)
+    "S1_blue": (0.500, 0.068, "door_sensor"),
+    "S2_blue": (0.162, 0.938, "door_sensor"),
+    # Motion Sensors (green M markers)
+    "M1": (0.108, 0.273, "motion"),
+    "M2": (0.340, 0.500, "motion"),
+    # Cameras (black C markers)
+    "C1": (0.221, 0.185, "camera"),
+    "C2": (0.438, 0.609, "camera"),
+    "C3": (0.775, 0.827, "camera"),
 }
 
 

@@ -54,3 +54,5 @@ class FloorPlanGeometry:
     ORIGINAL_IMG_WIDTH = 607
     ORIGINAL_IMG_HEIGHT = 373
 
+
+

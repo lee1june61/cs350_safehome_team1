@@ -2,7 +2,7 @@
 
 from typing import Iterable, Optional, Set
 
-DOOR_SENSOR_IDS: Set[str] = {"S2", "S5"}
+DOOR_SENSOR_IDS: Set[str] = {"S1_blue", "S2_blue"}
 
 _TYPE_LABEL_MAP = {
     "WINDOW": "W",

@@ -298,6 +298,7 @@ class TestConfigurationManager(unittest.TestCase):
 
         # 3. Configure modes
         home_mode = self.config_manager.get_safehome_mode(1)
+        home_mode.clear_sensors()
         home_mode.add_sensor(1)
         home_mode.add_sensor(2)
         self.config_manager.update_safehome_mode(home_mode)

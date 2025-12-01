@@ -24,3 +24,7 @@ class MasterVerification:
             return {"success": False, "message": "Enter password"}
         return self._send_request("verify_control_panel_password", password=code)
 
+    def reset(self):
+        self._buffer.reset()
+
+

@@ -12,7 +12,7 @@ class ButtonMixin:
         elif self._state == self.STATE_PANIC_VERIFY:
             if getattr(self, "_panic_locked", False):
                 return
-            self._password.add_digit(d, self._security.handle_panic_code)
+            self._password.add_master_digit(d, self._security.handle_panic_code)
 
     def button1(self):
         if self._state == self.STATE_OFF:
@@ -21,11 +21,14 @@ class ButtonMixin:
             self._digit("1")
 
     def button2(self):
-        self._digit("2")
+        if self._state == self.STATE_LOGGED_IN:
+            self._transitions.turn_off()
+        else:
+            self._digit("2")
 
     def button3(self):
         if self._state == self.STATE_LOGGED_IN:
-            self._transitions.turn_off()
+            self._transitions.reset()
         else:
             self._digit("3")
 
@@ -36,10 +39,7 @@ class ButtonMixin:
         self._digit("5")
 
     def button6(self):
-        if self._state == self.STATE_LOGGED_IN:
-            self._transitions.reset()
-        else:
-            self._digit("6")
+        self._digit("6")
 
     def button7(self):
         if self._state == self.STATE_LOGGED_IN:

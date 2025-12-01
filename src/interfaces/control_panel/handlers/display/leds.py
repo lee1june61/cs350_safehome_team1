@@ -30,3 +30,5 @@ class LedController:
         self._panel.set_display_away(mode == "AWAY")
         self._panel.set_display_stay(mode == "HOME")
 
+
+

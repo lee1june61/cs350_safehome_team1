@@ -249,3 +249,55 @@ class TestSafeHomeControlPanelUnit:
     # does not exist in the current implementation of SafeHomeControlPanel.
     # The panel accepts a new password and sends it directly to the system
     # without an internal matching step.
+
+    def test_button2_turns_off_when_logged_in(self, cp_unit_isolated):
+        cp, _ = cp_unit_isolated
+        cp._state = cp.STATE_LOGGED_IN
+        cp._transitions.turn_off = Mock()
+
+        cp.button2()
+
+        cp._transitions.turn_off.assert_called_once()
+
+    def test_button3_resets_when_logged_in(self, cp_unit_isolated):
+        cp, _ = cp_unit_isolated
+        cp._state = cp.STATE_LOGGED_IN
+        cp._transitions.reset = Mock()
+
+        cp.button3()
+
+        cp._transitions.reset.assert_called_once()
+
+    def test_button3_is_digit_when_idle(self, cp_unit_isolated):
+        cp, _ = cp_unit_isolated
+        cp._state = cp.STATE_IDLE
+        cp._transitions.reset = Mock()
+
+        cp.button3()
+
+        cp._transitions.reset.assert_not_called()
+        assert cp._password.consume_buffer() == "3"
+
+    def test_button6_never_calls_reset(self, cp_unit_isolated):
+        cp, _ = cp_unit_isolated
+        cp._state = cp.STATE_LOGGED_IN
+        cp._transitions.reset = Mock()
+
+        cp.button6()
+
+        cp._transitions.reset.assert_not_called()
+
+        cp._state = cp.STATE_IDLE
+        cp.button6()
+        assert cp._password.consume_buffer() == "6"
+
+    def test_password_handler_reset_clears_state(self, cp_unit_isolated):
+        cp, _ = cp_unit_isolated
+        cp._password._pw_buffer = "12"
+        cp._password._access_level = "MASTER"
+
+        cp._password.reset()
+
+        assert cp._password._pw_buffer == ""
+        assert cp._password.access_level is None
+        assert cp._password.get_remaining_attempts() == 3

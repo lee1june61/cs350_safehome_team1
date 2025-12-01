@@ -11,6 +11,7 @@ Tests:
 - IT-006: Reset the system
 - IT-007: Change master password through control panel
 """
+
 import pytest
 
 
@@ -71,6 +72,22 @@ class TestIT002WebBrowserLogin:
         )
         assert result["success"] is False
 
+    def test_control_panel_lock_does_not_block_web(self, system_on):
+        """Regression: Control panel lockout should not block web logins."""
+        for _ in range(3):
+            system_on.handle_request(
+                "control_panel", "login_control_panel", password="0000"
+            )
+        locked = system_on.handle_request(
+            "control_panel", "login_control_panel", password="1234"
+        )
+        assert locked.get("locked") is True
+
+        result = system_on.handle_request(
+            "web", "web_login", user_id="homeowner", password="password"
+        )
+        assert result["success"] is True
+
 
 class TestIT003ConfigureSystemSetting:
     """IT-003: Configure system setting."""
@@ -78,8 +95,10 @@ class TestIT003ConfigureSystemSetting:
     def test_configure_delay_time(self, system_web_logged_in):
         """Normal: Set delay time >= 5 minutes."""
         result = system_web_logged_in.handle_request(
-            "web", "configure_system_settings",
-            delay_time=10, monitor_phone="123-456-7890"
+            "web",
+            "configure_system_settings",
+            delay_time=10,
+            monitor_phone="123-456-7890",
         )
         assert result["success"] is True
 
@@ -89,6 +108,74 @@ class TestIT003ConfigureSystemSetting:
         assert result["success"] is True
         assert "delay_time" in result["data"]
         assert "monitor_phone" in result["data"]
+
+    def test_reset_defaults_restore_control_panel_pins(self, system_web_logged_in):
+        """Reset should restore master/guest control panel passwords."""
+        config_result = system_web_logged_in.handle_request(
+            "web",
+            "configure_system_settings",
+            delay_time=15,
+            monitor_phone="5551234567",
+            master_password="9999",
+            master_password_current="1234",
+            guest_password="1111",
+            guest_password_current="5678",
+        )
+        assert config_result["success"] is True
+        # Reboot control panel so password cache (if any) resets
+        system_web_logged_in.handle_request("control_panel", "turn_off")
+        system_web_logged_in.handle_request("control_panel", "turn_on")
+
+        # Ensure old master password fails and new succeeds
+        fail_old = system_web_logged_in.handle_request(
+            "control_panel", "login_control_panel", password="1234"
+        )
+        assert fail_old["success"] is False
+
+        success_new = system_web_logged_in.handle_request(
+            "control_panel", "login_control_panel", password="9999"
+        )
+        assert success_new["success"] is True
+        system_web_logged_in.handle_request("control_panel", "turn_off")
+        system_web_logged_in.handle_request("control_panel", "turn_on")
+
+        reset = system_web_logged_in.handle_request("web", "reset_system_settings")
+        assert reset["success"] is True
+        assert reset["data"]["delay_time"] == 30
+
+        system_web_logged_in.handle_request("control_panel", "turn_off")
+        system_web_logged_in.handle_request("control_panel", "turn_on")
+
+        restored = system_web_logged_in.handle_request(
+            "control_panel", "login_control_panel", password="1234"
+        )
+        assert restored["success"] is True
+        still_new_fails = system_web_logged_in.handle_request(
+            "control_panel", "login_control_panel", password="9999"
+        )
+        assert still_new_fails["success"] is False
+
+    def test_master_password_change_requires_current(self, system_web_logged_in):
+        """Changing master PIN should fail if current PIN incorrect."""
+        result = system_web_logged_in.handle_request(
+            "web",
+            "configure_system_settings",
+            master_password="8888",
+            master_password_current="0000",
+        )
+        assert result["success"] is False
+        assert "incorrect" in result.get("message", "").lower()
+
+    def test_guest_password_change_requires_current(self, system_web_logged_in):
+        """Changing guest PIN should fail if current PIN incorrect."""
+        result = system_web_logged_in.handle_request(
+            "web",
+            "configure_system_settings",
+            guest_password="2222",
+            guest_password_current="9999",
+        )
+        assert result["success"] is False
+        assert "incorrect" in result.get("message", "").lower()
 
 
 class TestIT004TurnSystemOn:
@@ -133,8 +220,10 @@ class TestIT007ChangePassword:
     def test_change_password_success(self, system_logged_in_master):
         """Normal: Change master password with correct current."""
         result = system_logged_in_master.handle_request(
-            "control_panel", "change_password",
-            current_password="1234", new_password="9999"
+            "control_panel",
+            "change_password",
+            current_password="1234",
+            new_password="9999",
         )
         assert result["success"] is True
 
@@ -149,9 +238,9 @@ class TestIT007ChangePassword:
     def test_change_password_wrong_current(self, system_logged_in_master):
         """Exception 4a: Wrong current password."""
         result = system_logged_in_master.handle_request(
-            "control_panel", "change_password",
-            current_password="0000", new_password="9999"
+            "control_panel",
+            "change_password",
+            current_password="0000",
+            new_password="9999",
         )
         assert result["success"] is False
-
-

@@ -19,9 +19,19 @@ class PasswordBuffer:
         self._value = ""
         return value
 
+    def peek(self) -> str:
+        """Return current buffer contents without clearing."""
+        return self._value
+
+    def set_value(self, value: str):
+        """Force-set the buffer value (legacy/testing support)."""
+        self._value = value or ""
+
     def add_digit(self, digit: str, on_complete: Callable[[], None], display_cb: Callable[[str], None]):
         self._value += digit
         display_cb("*" * len(self._value))
         if len(self._value) == 4:
             on_complete()
+
+
 

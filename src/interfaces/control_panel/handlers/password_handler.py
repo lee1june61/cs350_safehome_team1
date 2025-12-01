@@ -23,6 +23,7 @@ class PasswordHandler:
         self._change_flow = PasswordChangeFlow(panel.send_request, self._display_mask)
         self._master_verification = MasterVerification(panel.send_request, self._display_mask)
         self._access_level: Optional[str] = None
+        self._last_code: Optional[str] = None
 
     # ------------------------------------------------------------------ #
     # Configuration
@@ -51,6 +52,7 @@ class PasswordHandler:
         if res.get("success"):
             self._access_level = res.get("access_level", "GUEST")
             self._guard.record_success()
+            self._last_code = code
             return True
         self._guard.record_failure()
         return False
@@ -74,7 +76,10 @@ class PasswordHandler:
         self._change_flow.add_digit(digit, on_complete)
 
     def finish_change(self):
-        self._change_flow.finish()
+        response, new_code = self._change_flow.finish(self._last_code or "")
+        if response.get("success"):
+            self._last_code = new_code
+        return response
 
     # ------------------------------------------------------------------ #
     # Master verification (without login)
@@ -84,6 +89,9 @@ class PasswordHandler:
 
     def add_master_digit(self, digit: str, on_complete: Callable[[], None]):
         self._master_verification.add_digit(digit, on_complete)
+
+    def clear_master_buffer(self):
+        self._master_verification.reset()
 
     # ------------------------------------------------------------------ #
     # Helpers
@@ -105,4 +113,30 @@ class PasswordHandler:
     @property
     def lock_time_seconds(self) -> int:
         return self._guard.lock_time_seconds
+
+    # ------------------------------------------------------------------ #
+    # Legacy/testing compatibility
+    # ------------------------------------------------------------------ #
+    @property
+    def _pw_buffer(self) -> str:  # pragma: no cover - used in legacy-style tests
+        """Expose buffer contents for older tests and diagnostics."""
+        return self._buffer.peek()
+
+    @_pw_buffer.setter
+    def _pw_buffer(self, value: str):
+        self._buffer.set_value(value)
+
+    # ------------------------------------------------------------------ #
+    # Housekeeping
+    # ------------------------------------------------------------------ #
+    def reset(self):
+        """Clear all password buffers and state (used when system turns off)."""
+        self._buffer.reset()
+        self._change_flow.reset()
+        self._master_verification.reset()
+        self._access_level = None
+        self._last_code = None
+        self._guard.record_success()
+        # Clear any masked text on the panel so stale '*' aren't shown.
+        self._panel.set_display_short_message2("")
 

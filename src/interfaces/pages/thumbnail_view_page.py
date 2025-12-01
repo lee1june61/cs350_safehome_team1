@@ -3,11 +3,16 @@ import tkinter as tk
 from tkinter import ttk
 from PIL import ImageTk
 from ..components.page import Page
+from .camera_list.access_manager import CameraAccessManager
 
 
 class ThumbnailViewPage(Page):
     """View all cameras as thumbnails. Shows all enabled cameras with lock indicators."""
-    
+
+    def __init__(self, parent, web_interface):
+        super().__init__(parent, web_interface)
+        self._access = CameraAccessManager(self)
+
     def _build_ui(self):
         self._create_header("All Cameras", back_page='surveillance')
         self._content = ttk.Frame(self._frame)
@@ -44,7 +49,7 @@ class ThumbnailViewPage(Page):
                     anchor='center'
                 )
                 locked_label.pack(expand=True, fill='both', padx=5, pady=5)
-                locked_label.bind('<Button-1>', lambda e, cid=cam_id: self._view(cid))
+                locked_label.bind('<Button-1>', lambda e, cid=cam_id, locked=is_locked: self._view(cid, locked))
             else:
                 # Get actual thumbnail
                 view_res = self.send_to_system('get_camera_view', camera_id=cam_id)
@@ -62,19 +67,24 @@ class ThumbnailViewPage(Page):
                     
                     img_label = ttk.Label(f, image=photo, anchor='center')
                     img_label.pack(expand=True, fill='both', padx=5, pady=5)
-                    img_label.bind('<Button-1>', lambda e, cid=cam_id: self._view(cid))
+                    img_label.bind('<Button-1>', lambda e, cid=cam_id, locked=is_locked: self._view(cid, locked))
                 else:
                     # Fallback if image not available
                     lbl = ttk.Label(f, text=f"📷\n{cam_id}", font=('Arial', 16), anchor='center')
                     lbl.pack(expand=True, fill='both', padx=5, pady=5)
-                    lbl.bind('<Button-1>', lambda e, cid=cam_id: self._view(cid))
+                    lbl.bind('<Button-1>', lambda e, cid=cam_id, locked=is_locked: self._view(cid, locked))
             
             self._frames.append(f)
         
         if not cams:
             ttk.Label(self._content, text="No cameras available", font=('Arial', 14)).pack(pady=50)
     
-    def _view(self, cam_id):
+    def _view(self, cam_id, locked: bool = False):
+        if locked:
+            if self._access.is_locked(cam_id):
+                return
+            if not self._access.verify_password(cam_id):
+                return
         self._web_interface.set_context('camera_id', cam_id)
         self._web_interface.set_context('camera_back_page', 'thumbnail_view')
         self.navigate_to('single_camera_view')

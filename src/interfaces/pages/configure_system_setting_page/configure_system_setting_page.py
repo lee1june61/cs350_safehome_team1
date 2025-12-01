@@ -58,12 +58,27 @@ class ConfigureSystemSettingPage(Page):
             var.set('')
 
     def _reset_defaults(self):
-        if messagebox.askyesno("Confirm", "Reset all settings to defaults?"):
-            self._delay_time.set('5')
-            self._monitor_phone.set('911')
+        if not messagebox.askyesno("Confirm", "Reset all settings to defaults?"):
+            return
+        res = self.send_to_system('reset_system_settings')
+        if res.get('success'):
+            data = res.get('data', {})
+            self._delay_time.set(str(data.get('delay_time', 5)))
+            self._monitor_phone.set(data.get('monitor_phone', ''))
             self._clear_password_fields()
             self._status.config(
-                text="Reset to defaults (not saved yet)", foreground='orange')
+                text="Defaults restored (including control panel PINs)",
+                foreground='green'
+            )
+            messagebox.showinfo(
+                "Reset Complete",
+                "Settings and control panel passwords have been restored to defaults.\n"
+                "Master: 1234, Guest: 5678"
+            )
+        else:
+            message = res.get('message', 'Failed to reset settings')
+            self._status.config(text=message, foreground='red')
+            messagebox.showerror("Error", message)
 
     def on_show(self):
         res = self.send_to_system('get_system_settings')

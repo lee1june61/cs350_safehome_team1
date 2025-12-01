@@ -72,6 +72,7 @@ def build_command_map(
         # Settings / Logs
         "get_system_settings": settings_handler.get_settings,
         "configure_system_settings": settings_handler.configure_settings,
+        "reset_system_settings": settings_handler.reset_settings,
         "get_intrusion_log": log_handler.get_intrusion_log,
         "get_intrusion_logs": log_handler.get_intrusion_log,
     }

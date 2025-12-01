@@ -4,19 +4,31 @@ from typing import Dict, List, Tuple
 
 # Device data matching floorplan.png (C=Camera, S=Sensor, M=Motion)
 SENSORS: List[Dict] = [
-    {"id": "S1", "type": "WINDOW", "location": "DR Top", "armed": False},
-    {"id": "S2", "type": "DOOR", "location": "DR Left", "armed": False},
-    {"id": "S3", "type": "WINDOW", "location": "KIT Left", "armed": False},
-    {"id": "S4", "type": "WINDOW", "location": "LR Top", "armed": False},
-    {"id": "S5", "type": "DOOR", "location": "LR Right Top", "armed": False},
-    {"id": "S6", "type": "WINDOW", "location": "LR Right Bottom", "armed": False},
+    {"id": "S1", "type": "WINDOW", "location": "DR Top Window", "armed": False},
+    {"id": "S2", "type": "WINDOW", "location": "DR Left Window", "armed": False},
+    {"id": "S3", "type": "WINDOW", "location": "KIT Left Window", "armed": False},
+    {"id": "S4", "type": "WINDOW", "location": "LR Top Window", "armed": False},
+    {"id": "S5", "type": "WINDOW", "location": "LR Right Top Window", "armed": False},
+    {"id": "S6", "type": "WINDOW", "location": "LR Right Bottom Window", "armed": False},
+    {"id": "S1_blue", "type": "DOOR", "location": "Front Door", "armed": False},
+    {"id": "S2_blue", "type": "DOOR", "location": "Patio Door", "armed": False},
     {"id": "M1", "type": "MOTION", "location": "DR", "armed": False},
     {"id": "M2", "type": "MOTION", "location": "Hallway", "armed": False},
 ]
 
 SAFETY_ZONES: List[Dict] = [
-    {"id": 1, "name": "Front Zone", "sensors": ["S1", "S2", "M1"], "armed": False},
-    {"id": 2, "name": "Kitchen Zone", "sensors": ["S3"], "armed": False},
+    {
+        "id": 1,
+        "name": "Front Zone",
+        "sensors": ["S1", "S2", "S1_blue", "M1"],
+        "armed": False,
+    },
+    {
+        "id": 2,
+        "name": "Kitchen Zone",
+        "sensors": ["S3", "S2_blue"],
+        "armed": False,
+    },
     {
         "id": 3,
         "name": "Living Room",
@@ -27,11 +39,33 @@ SAFETY_ZONES: List[Dict] = [
 
 # Default mode configurations (which sensors are active in each mode)
 MODE_CONFIGS: Dict[str, List[str]] = {
-    "HOME": ["S1", "S2", "S5", "S6"],  # Perimeter only
-    "AWAY": ["S1", "S2", "S3", "S4", "S5", "S6", "M1", "M2"],  # All sensors
-    "OVERNIGHT": ["S1", "S2", "S3", "S4", "S5", "S6"],  # All except motion
-    "EXTENDED": ["S1", "S2", "S3", "S4", "S5", "S6", "M1", "M2"],  # All sensors
-    "GUEST": ["S1", "S2", "S5", "S6"],  # Same as HOME
+    "HOME": ["S1", "S2", "S5", "S6", "S1_blue", "S2_blue"],  # Perimeter only
+    "AWAY": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6",
+        "S1_blue",
+        "S2_blue",
+        "M1",
+        "M2",
+    ],  # All sensors
+    "OVERNIGHT": ["S1", "S2", "S3", "S4", "S5", "S6", "S1_blue", "S2_blue"],  # All except motion
+    "EXTENDED": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6",
+        "S1_blue",
+        "S2_blue",
+        "M1",
+        "M2",
+    ],  # All sensors
+    "GUEST": ["S1", "S2", "S5", "S6", "S1_blue", "S2_blue"],  # Same as HOME
 }
 
 CAMERAS: List[Dict] = [
@@ -41,14 +75,16 @@ CAMERAS: List[Dict] = [
 ]
 
 SENSOR_COORDS: Dict[str, Tuple[int, int]] = {
-    "S1": (35, 90),
-    "S2": (115, 36),
-    "S3": (35, 255),
-    "S4": (450, 42),
-    "S5": (582, 140),
-    "S6": (582, 275),
-    "M1": (70, 140),
-    "M2": (285, 190),
+    "S1": (26, 101),
+    "S2": (84, 28),
+    "S3": (27, 256),
+    "S4": (485, 29),
+    "S5": (578, 86),
+    "S6": (577, 258),
+    "S1_blue": (304, 25),
+    "S2_blue": (98, 350),
+    "M1": (66, 102),
+    "M2": (206, 186),
 }
 
 __all__ = [

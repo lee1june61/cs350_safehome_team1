@@ -1,18 +1,27 @@
 """Pytest fixtures for interface tests - uses real System class"""
-import pytest
-import sys
 import os
+import sys
 
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-sys.path.insert(0, project_root)
+import pytest
 
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+from src.configuration.storage_manager import StorageManager
 from src.core.system import System
 
 
 @pytest.fixture
-def system():
-    """Create a fresh System for each test"""
-    return System()
+def system(tmp_path):
+    """Create a fresh System with an isolated database for each test."""
+    StorageManager._instance = None  # reset singleton for clean DB
+    db_path = tmp_path / "interface_tests.db"
+    sys_inst = System(str(db_path))
+    yield sys_inst
+    storage = getattr(sys_inst, "_storage", None)
+    if storage:
+        storage.disconnect()
 
 
 @pytest.fixture
@@ -72,4 +81,5 @@ def control_panel_logged_in(system):
     cp._new_pw_buffer = ''
     cp._access_level = 'MASTER'
     cp._attempts = 3
+    system.handle_request("control_panel", "login_control_panel", password="1234")
     return cp

@@ -30,12 +30,13 @@ class LoginCoordinator:
         self._login_manager = login_manager
         self._logger = logger
         self._identity = identity
-        self._lock_manager = LockManager(max_attempts, lock_duration)
-        cp_handler = ControlPanelLoginHandler(self._lock_manager, ControlPanelUserResolver(storage_manager))
+        self._cp_lock = LockManager(max_attempts, lock_duration)
+        self._web_lock = LockManager(max_attempts, lock_duration)
+        cp_handler = ControlPanelLoginHandler(self._cp_lock, ControlPanelUserResolver(storage_manager))
         self._cp_flow = ControlPanelLoginFlow(cp_handler, logger, self._on_login_success)
-        self._web_flow = WebLoginFlow(WebLoginHandler(self._lock_manager), logger, self._on_login_success)
-        self._pw_change = PasswordChangeHandler(login_manager, logger, self._lock_manager)
-        self._cp_pw = ControlPanelPasswordHandler(storage_manager, self._lock_manager)
+        self._web_flow = WebLoginFlow(WebLoginHandler(self._web_lock), logger, self._on_login_success)
+        self._pw_change = PasswordChangeHandler(login_manager, logger, self._cp_lock)
+        self._cp_pw = ControlPanelPasswordHandler(storage_manager, self._cp_lock)
 
         self._current_user: Optional[str] = None
         self._access_level: Optional[int] = None
@@ -60,6 +61,8 @@ class LoginCoordinator:
         self._login_manager.logout()
         self._current_user, self._access_level = None, None
         self._identity.reset()
+        self._cp_lock.record_success()
+        self._web_lock.record_success()
         return {"success": True}
 
     def change_password(self, current_password="", new_password="", username="master", interface="control_panel", **_) -> Dict:
@@ -79,7 +82,8 @@ class LoginCoordinator:
         return self._cp_pw.update_passwords(master_password, guest_password)
 
     def update_policy(self, *, max_attempts=None, lock_duration=None):
-        self._lock_manager.update_policy(max_attempts=max_attempts, lock_duration=lock_duration)
+        self._cp_lock.update_policy(max_attempts=max_attempts, lock_duration=lock_duration)
+        self._web_lock.update_policy(max_attempts=max_attempts, lock_duration=lock_duration)
 
     # ------------------------------------------------------------------ #
     # State helpers
@@ -98,7 +102,10 @@ class LoginCoordinator:
     def _on_login_success(self, username: str, access_level: int, interface: str):
         self._current_user, self._access_level = username, access_level
         self._identity.reset()
-        self._lock_manager.record_success()
+        if interface == "control_panel":
+            self._cp_lock.record_success()
+        elif interface == "web":
+            self._web_lock.record_success()
 
     def _ensure_auth(self, username: str, password: str, interface: str) -> bool:
         if not password:

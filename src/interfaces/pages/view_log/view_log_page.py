@@ -43,3 +43,5 @@ class ViewLogPage(Page):
         self._load()
 
 
+
+

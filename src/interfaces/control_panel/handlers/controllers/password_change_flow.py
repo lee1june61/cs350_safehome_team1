@@ -18,11 +18,22 @@ class PasswordChangeFlow:
     def start(self):
         self._buffer.reset()
 
+    def reset(self):
+        """Clear any in-progress password change input."""
+        self._buffer.reset()
+
     def add_digit(self, digit: str, on_complete: Callable[[], None]):
         self._buffer.add_digit(digit, on_complete, self._display_cb)
 
-    def finish(self):
+    def finish(self, current_password: str):
         new_code = self._buffer.consume()
-        if new_code:
-            self._send_request("change_password", new_password=new_code)
+        if not new_code:
+            return {"success": False, "message": "Enter password"}, ""
+        response = self._send_request(
+            "change_password",
+            current_password=current_password,
+            new_password=new_code,
+        )
+        return response, new_code
+
 

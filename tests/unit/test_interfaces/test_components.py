@@ -42,12 +42,12 @@ class TestFloorPlan:
         assert len(cameras) == 3
 
     def test_get_sensors(self, floor_plan):
-        """Test getting all sensor types (sensor + motion)."""
+        """Test getting all sensor types (window, door, motion)."""
         sensors = floor_plan.get_sensors()
-        assert 'S1' in sensors
-        assert 'M1' in sensors
+        expected = {'S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S1_blue', 'S2_blue', 'M1', 'M2'}
+        assert expected.issubset(set(sensors))
         assert 'C1' not in sensors
-        assert len(sensors) == 8
+        assert len(sensors) == len(expected)
 
     def test_selection_methods(self, floor_plan):
         """Test selection and highlight functionality."""

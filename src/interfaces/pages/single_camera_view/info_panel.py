@@ -46,3 +46,5 @@ class CameraInfoPanel:
         if enabled and not self._page._video_paused and self._page._is_visible:
             self._page._video_feed.start()
 
+
+

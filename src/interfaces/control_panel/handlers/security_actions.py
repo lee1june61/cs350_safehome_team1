@@ -59,8 +59,8 @@ class SecurityActions:
             self._panel.show_panic_lock(msg, int(seconds or 0))
         else:
             attempts = res.get("attempts_remaining")
-            msg = res.get("message", "Incorrect")
             detail = f"{attempts} attempts left" if attempts is not None else ""
-            self._panel.set_display_short_message1(msg[:16])
-            self._panel.set_display_short_message2(detail[:16])
+            self._panel._display.show_panic_verify_error()
+            if detail:
+                self._panel.set_display_short_message2(detail[:16])
 
