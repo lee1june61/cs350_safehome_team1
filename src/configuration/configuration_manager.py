@@ -6,7 +6,6 @@ from .safehome_mode import SafeHomeMode
 from .safety_zone import SafetyZone
 from .storage_manager import StorageManager
 from .system_settings import SystemSettings
-from ..core.system_defaults import MODE_CONFIGS
 
 
 class ConfigurationManager:
@@ -16,6 +15,13 @@ class ConfigurationManager:
         self._storage_manager = storage_manager
 
     def initialize_configuration(self) -> bool:
+        # Import here to avoid circular import
+        try:
+            from ..core.system_defaults import MODE_CONFIGS
+        except ImportError:
+            # If core module not available, use empty configs
+            MODE_CONFIGS = {}
+
         default_definitions = [
             ("HOME", "Minimal sensors when home"),
             ("AWAY", "All sensors when away"),
