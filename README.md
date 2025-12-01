@@ -200,15 +200,6 @@ HTML output lands in `htmlcov/index.html`. Open in a browser for color-coded lin
    ```bash
    pytest --cov=src --cov-branch --cov-report=json
    ```
-2. **Method-level table**:
-   ```bash
-   python tools/method_coverage_json.py --file src/interfaces/pages/.../module.py
-   ```
-3. **Class-level table**:
-   ```bash
-   python tools/class_coverage_json.py --path-prefix src/core/ --output class_coverage_report.md
-   ```
-Both scripts accept `--format json` for machine-readable output; omit `--output` to print directly to stdout.
 
 ### Linting
 We rely on `pytest` plugins for static checks. If you add flake8 or ruff locally, run them from the repo root so relative imports resolve correctly.
