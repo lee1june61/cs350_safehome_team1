@@ -2,6 +2,12 @@
 from tkinter import messagebox, simpledialog
 from typing import TYPE_CHECKING
 
+from ..camera_lock_state import (
+    is_locked as global_is_locked,
+    lock_camera,
+    unlock_camera,
+)
+
 if TYPE_CHECKING:
     from .camera_list_page import CameraListPage
 
@@ -19,7 +25,8 @@ class CameraAccessManager:
 
     def is_locked(self, cam_id: str) -> bool:
         """Check if camera is locked."""
-        if self._locked.get(cam_id, False):
+        if self._locked.get(cam_id, False) or global_is_locked(cam_id):
+            self._locked[cam_id] = True
             messagebox.showerror(
                 "Camera Locked",
                 f"Camera {cam_id} is locked.\nPlease wait or contact admin."
@@ -56,6 +63,7 @@ class CameraAccessManager:
 
         if remaining <= 0:
             self._locked[cam_id] = True
+            lock_camera(cam_id)
             messagebox.showerror(
                 "Camera Locked",
                 f"Camera {cam_id} locked for 60 seconds."
@@ -73,7 +81,9 @@ class CameraAccessManager:
     def _unlock(self, cam_id: str):
         """Unlock camera after timeout."""
         self._locked[cam_id] = False
+        unlock_camera(cam_id)
         self._attempts[cam_id] = self.MAX_ATTEMPTS
+
 
 
 

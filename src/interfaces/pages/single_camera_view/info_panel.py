@@ -27,7 +27,9 @@ class CameraInfoPanel:
 
         camera = res.get("data", {})
         enabled = camera.get("enabled", False)
-        password_flag = "Yes" if camera.get("has_password") else "No"
+        has_password = bool(camera.get("has_password"))
+        password_flag = "Yes" if has_password else "No"
+        self._page._requires_password = has_password
 
         info_lines = (
             f"ID: {camera.get('id')}\n"
@@ -45,6 +47,7 @@ class CameraInfoPanel:
 
         if enabled and not self._page._video_paused and self._page._is_visible:
             self._page._video_feed.start()
+
 
 
 

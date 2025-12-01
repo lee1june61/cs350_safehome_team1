@@ -49,8 +49,6 @@ class CameraListPage(Page):
 
         if self._access.is_locked(cam_id):
             return
-        if self._selected.get("password") and not self._access.verify_password(cam_id):
-            return
 
         self._web_interface.set_context("camera_id", cam_id)
         self._web_interface.set_context("camera_back_page", "camera_list")

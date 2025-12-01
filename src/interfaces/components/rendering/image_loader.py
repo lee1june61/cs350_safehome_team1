@@ -50,3 +50,4 @@ def load_floorplan_image(canvas: tk.Canvas, width: int, height: int):
 
 
 
+
