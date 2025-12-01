@@ -91,7 +91,7 @@ Shut down both windows (or the Python process) to stop the system. State persist
 - **Web credentials**
   - User ID: `admin`
   - Password 1 / Password 2: both `password`
-  - Monitoring Phone: 010-1234-1234
+  - Monitoring Phone: `010-1234-1234`
 - **Alarm settings**: See `configuration/system_settings.py` for defaults (delay time, lockouts, session timeout, etc.).
 
 If the DB becomes inconsistent during testing, delete `safehome.db` and rerun the app—`ConfigurationManager` seeds a fresh copy.
