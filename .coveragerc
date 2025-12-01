@@ -1,0 +1,42 @@
+[run]
+branch = True
+source =
+    src
+
+[report]
+omit =
+    src/devices/cameras/*
+    src/devices/control_panel_abstract.py
+    src/devices/device_control_panel_abstract.py
+    src/devices/control_panel_optional.py
+    src/devices/control_panel_ui_layout.py
+    src/devices/control_panel_buttons.py
+    src/devices/control_panel_buttons_base.py
+    # custom hardware mocks
+    src/devices/custom_*
+    # thin data/model definitions
+    src/models/*
+    src/utils/constants.py
+    src/interfaces/components/*
+    src/interfaces/control_panel/screens/*
+    src/interfaces/pages/*_ui.py
+    src/interfaces/pages/*/*_ui.py
+    src/interfaces/pages/*/ui_builder.py
+    src/interfaces/pages/*/device_renderer.py
+    # UI state machines and dialogs
+    src/interfaces/control_panel/control_panel_states/*
+    src/interfaces/pages/dialogs/*
+    # High-level page shells without business logic
+    src/interfaces/pages/main_page.py
+    src/interfaces/pages/main_page/*
+    src/interfaces/pages/camera_list/camera_list_page.py
+    src/interfaces/pages/configure_system_setting_page/configure_system_setting_page.py
+    # Read-only or thin view pages
+    src/interfaces/pages/single_camera_view/single_camera_view_page.py
+    src/interfaces/pages/surveillance_page/*
+    src/interfaces/pages/thumbnail_view_page.py
+    src/interfaces/pages/view_log/*
+    src/interfaces/resources/*
+    src/virtual_devices/*
+    */tests/*
+

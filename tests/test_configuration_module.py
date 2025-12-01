@@ -70,7 +70,7 @@ def test_system_settings_roundtrip(storage_manager):
     assert loaded.session_timeout == settings.session_timeout
 
 
-def test_system_settings_validation_failure():
+def test_system_settings_validation_failure(storage_manager):
     """Invalid settings should fail validation."""
     settings = SystemSettings(
         monitoring_service_phone="bad-phone",
@@ -81,7 +81,7 @@ def test_system_settings_validation_failure():
     assert settings.validate_settings() is False
     with pytest.raises(ValidationError):
         # Saving invalid settings should raise.
-        settings.save_to_database(StorageManager({"db_path": ":memory:"}))
+        settings.save_to_database(storage_manager)
 
 
 def test_system_settings_allows_emergency_phone(storage_manager):
