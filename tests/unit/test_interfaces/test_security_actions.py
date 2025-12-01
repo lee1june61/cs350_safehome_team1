@@ -161,3 +161,4 @@ class TestSecurityActions:
         assert panel._display.panic_error_shown is True
         assert panel.messages[1] == "2 attempts left"
 
+

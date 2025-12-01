@@ -164,3 +164,4 @@ class TestLoginPageLoginManager:
         assert manager._status_msg.props["text"] == ""
         assert manager._guard.reset_calls == 1
 
+

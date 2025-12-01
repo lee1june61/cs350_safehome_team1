@@ -134,3 +134,4 @@ class TestWebLoginHandler:
         assert response == {"success": False}
         lock.record_failure.assert_called_once_with()
 
+

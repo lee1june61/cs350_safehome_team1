@@ -128,3 +128,4 @@ class TestZoneCrudService:
         assert result == {"success": True, "message": "Safety zone deleted"}
         logger.add_event.assert_called_once()
 
+

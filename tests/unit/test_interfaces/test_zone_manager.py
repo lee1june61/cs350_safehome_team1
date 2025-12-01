@@ -268,3 +268,4 @@ def test_action_shortcuts_delegate_to_handler(manager_factory):
     ctx.action.delete_zone.assert_called_once()
 
 
+

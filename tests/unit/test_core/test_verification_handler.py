@@ -63,3 +63,4 @@ class TestVerificationHandler:
         handler.reset()
         validator.reset.assert_called_once_with()
 
+
