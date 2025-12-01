@@ -7,10 +7,16 @@ source =
 omit =
     src/devices/cameras/*
     src/devices/control_panel_abstract.py
+    src/devices/device_control_panel_abstract.py
     src/devices/control_panel_optional.py
     src/devices/control_panel_ui_layout.py
+    src/devices/control_panel_buttons.py
+    src/devices/control_panel_buttons_base.py
     # custom hardware mocks
     src/devices/custom_*
+    # thin data/model definitions
+    src/models/*
+    src/utils/constants.py
     src/interfaces/components/*
     src/interfaces/control_panel/screens/*
     src/interfaces/pages/*_ui.py

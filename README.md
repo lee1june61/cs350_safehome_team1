@@ -60,38 +60,64 @@ python main.py
 
 ## 🎮 User Guide
 
-### Control Panel (Local)
-1. **Start**: The system is initially OFF when the program starts. Press the `1` button to turn the system ON.
-2. **Login**: Enter the 4-digit PIN.
-   - **Master Password**: `1234`
-   - **Guest Password**: `5678`
-3. **Commands**:
-   - `7`: **AWAY** Mode (Arm all sensors)
-   - `8`: **HOME** Mode (Disarm internal sensors)
-   - `9`: **CODE** (Change password)
-   - `2`: **OFF** (Turn off system)
-   - `3`: **RESET** (Reset system)
-   - `*` or `#`: **PANIC** (Trigger immediate alarm)
+### Control Panel Workflows
+1. **Power On & Login**
+   - System boots in `OFF`. Press `1` to power up, then enter a 4-digit PIN.
+   - Default codes: Master `1234`, Guest `5678`.
+2. **Arming & Disarming**
+   - `7` → **AWAY** (all sensors armed).
+   - `8` → **HOME** (perimeter only).
+   - `2` → **OFF`**, `3` → **RESET** to return to idle if something goes wrong.
+3. **Changing the Panel PIN**
+   - Press `9 (CODE)` once logged in → enter current PIN → enter new PIN twice.
+4. **Panic / Emergency**
+   - Press `*` or `#` to trigger panic.
+   - Control Panel screen flashes `ALARM`; enter master PIN to clear.
+5. **LED & Message Indicators**
+   - Short message lines show current mode/errors.
+   - Watch the armed (green) and not-ready (red) LEDs while issuing commands.
 
-### Web Interface (Remote)
-Login with the following credentials:
-- **User ID**: `admin`
-- **Password 1**: `password`
-- **Password 2**: `password`
+### Web Interface Workflows
+Use `admin / password / password` to log in (user ID, password 1, password 2).
 
-## 🧪 Testing
-To verify the stability of the project, run the following commands:
+| Goal | Navigation & Steps |
+| --- | --- |
+| **Monitor system summary** | `Main Page` → check widgets for mode, alarm, recent events. |
+| **Manage sensors & zones** | `Safety Zone Page` → select a zone from the left list, use `Edit Sensors` to add/remove devices, click `Save` to persist. |
+| **Zone arming** | Same page → use `Arm`/`Disarm` buttons in the right panel; status label confirms results. |
+| **Camera control** | `Single Camera View` or `Camera List` → pick a camera, use PTZ buttons (`Pan`, `Tilt`, `Zoom`) or enable/disable toggles. |
+| **Security actions** | `Security Page` → use `Arm Home/Away` or `Panic` buttons; follow on-screen verification dialogs. |
+| **View logs & history** | `View Log` page to filter by date and export records. |
+| **Configure system settings** | `Configure System Setting Page` → adjust contact info, monitoring numbers, and save/reset via the top-right actions. |
 
+## 🧪 Testing & Coverage
+
+### Common Test Commands
 ```bash
-# Run all tests
+# Quick sanity test run
 pytest
 
-# View detailed results
+# Verbose output for debugging
 pytest -v
 
-# Generate coverage report
-pytest --cov=src tests/
+# Branch-aware coverage with terminal summary and HTML report
+pytest --cov=src --cov-branch --cov-report=term-missing --cov-report=html
 ```
+
+The HTML report is written to `htmlcov/index.html`; open it in a browser to drill down to specific files.
+
+### Method-Level Coverage Drill-Down
+While `coverage.py` reports line coverage by default, you can inspect per-function/method metrics in two ways:
+
+1. **HTML detail view**  
+   - Run `pytest --cov=src --cov-branch --cov-report=html`.  
+   - Open `htmlcov/<module>.py.html`. Each function header lists executed / missing lines, giving a quick method-level snapshot.
+
+2. **XML/JSON exports for tooling**  
+   - Run `pytest --cov=src --cov-branch --cov-report=xml --cov-report=json`.  
+   - Import `coverage.xml` (or `coverage.json`) into IDE plugins such as VS Code Coverage Gutters or CI dashboards—these files include per-function statistics you can filter/sort.
+
+For ad-hoc inspection of a single module, you can run `coverage run -m pytest tests/unit/... && coverage report src/path/to/file.py` to limit the output to the methods you care about.
 
 ## ⚠️ Notes
 - **Control Panel** simulates local hardware devices; operate the buttons by clicking with your mouse.
