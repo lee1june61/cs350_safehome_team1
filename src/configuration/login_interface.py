@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import IntEnum
 from typing import Any, Dict, Optional
@@ -78,38 +78,12 @@ class LoginInterface:
         self.is_locked, self.login_attempts = False, 0
 
     def to_dict(self) -> Dict[str, Any]:
-        """Return dictionary representation."""
-        data = asdict(self)
-        data["created_at"] = self.created_at.isoformat()
-        data["last_login"] = self.last_login.isoformat() if self.last_login else None
-        return data
+        from .login_serialization import to_dict
+
+        return to_dict(self)
 
     @staticmethod
     def from_dict(data: Dict[str, Any]) -> "LoginInterface":
-        obj = object.__new__(LoginInterface)
-        obj.username, obj.password_hash, obj.interface = (
-            data["username"],
-            data["password_hash"],
-            data["interface"],
-        )
-        obj.access_level = int(data.get("access_level", AccessLevel.USER_ACCESS))
-        obj.login_attempts, obj.is_locked = int(data.get("login_attempts", 0)), bool(
-            data.get("is_locked", False)
-        )
-        obj.password_min_length = int(data.get("password_min_length", 8))
-        obj.password_requires_digit = bool(data.get("password_requires_digit", True))
-        obj.password_requires_special = bool(
-            data.get("password_requires_special", False)
-        )
-        created = data.get("created_at")
-        obj.created_at = (
-            datetime.fromisoformat(created)
-            if isinstance(created, str)
-            else datetime.utcnow()
-        )
-        obj.last_login = (
-            datetime.fromisoformat(data["last_login"])
-            if data.get("last_login")
-            else None
-        )
-        return obj
+        from .login_serialization import from_dict
+
+        return from_dict(data)

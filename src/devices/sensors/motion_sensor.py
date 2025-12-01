@@ -1,124 +1,48 @@
-from typing import List, Dict, Any, Optional
+"""Motion sensor implementation."""
+
+from typing import List, Dict, Any
 from .sensor import Sensor
+from .motion_sensor_metadata import MotionSensorMetadataMixin
 
 
-class MotionSensor(Sensor):
+class MotionSensor(MotionSensorMetadataMixin, Sensor):
     """모션 감지 센서 클래스"""
 
     def __init__(self, sensor_id: int, sensor_type: int, location: List[int]):
-        """
-        모션 센서를 초기화합니다.
-
-        Args:
-            sensor_id: 센서 ID
-            sensor_type: 센서 타입
-            location: 센서 위치 [x, y]
-        """
         super().__init__(sensor_id, sensor_type, location)
         self._detected = False
-        self._device = None  # 연결된 물리적 디바이스
+        self._device = None
         self._friendly_id = f"M{self._id}"
         self._location_label = "Unknown"
         self._category = "motion"
         self._extra: Dict[str, Any] = {}
+        self._detectedSignal = 0
 
     def read(self) -> int:
-        """
-        센서 상태를 읽습니다.
-
-        Returns:
-            센서가 활성화되어 있고 모션이 감지되면 1, 아니면 0
-        """
+        """센서 상태를 읽습니다."""
         if self._armed:
             if self._device:
-                # 물리적 디바이스가 연결되어 있으면 디바이스에서 읽음
                 self._detected = self._device.read()
             self._detectedSignal = 1 if self._detected else 0
             return self._detectedSignal
         return 0
 
     def isDetected(self) -> bool:
-        """
-        모션이 감지되었는지 확인합니다.
-
-        Returns:
-            모션 감지 여부
-        """
+        """모션이 감지되었는지 확인합니다."""
         if self._device:
             self._detected = self._device.read()
         return self._detected
 
     def setDevice(self, device) -> None:
-        """
-        물리적 디바이스를 연결합니다.
-
-        Args:
-            device: 연결할 DeviceMotionDetector 객체
-        """
+        """물리적 디바이스를 연결합니다."""
         self._device = device
 
     def setDetected(self, detected: bool) -> None:
-        """
-        테스트를 위한 감지 상태 설정 메서드
-
-        Args:
-            detected: 감지 상태
-        """
+        """테스트를 위한 감지 상태 설정 메서드"""
         self._detected = detected
 
-    # ------------------------------------------------------------------
-    # Metadata helpers for System/UI integration
-    # ------------------------------------------------------------------
-    def set_metadata(
-        self,
-        friendly_id: str,
-        location_name: str,
-        category: str = "motion",
-        extra: Optional[Dict[str, Any]] = None,
-    ):
-        """Attach friendly metadata for UI display."""
-        self._friendly_id = friendly_id or self._friendly_id
-        self._location_label = location_name or self._location_label
-        self._category = (category or "motion").lower()
-        self._extra = extra or {}
+    def isArmed(self) -> bool:
+        return self._armed
 
-    def get_sensor_id(self) -> int:
-        """Return numeric ID (legacy helper)."""
-        return self.getID()
-
-    def get_location(self) -> str:
-        """Return human readable location."""
-        return self._location_label
-
-    def get_type(self) -> str:
-        """Return presentation type string."""
-        return "motion"
-
-    def can_arm(self) -> bool:
-        """Motion sensors can always be armed."""
-        return True
-
-    def reset_trigger(self):
-        """Clear detection state."""
-        self._detected = False
-        self._detectedSignal = 0
-
-    def force_trigger(self):
-        """Force a detection event (testing helper)."""
-        if self._armed:
-            self._detected = True
-            self._detectedSignal = 1
-
-    def get_status(self) -> Dict[str, Any]:
-        """Return structured status information."""
-        triggered = bool(self.isDetected())
-        return {
-            "id": self._friendly_id,
-            "name": self._location_label,
-            "type": self.get_type(),
-            "location": self._location_label,
-            "armed": self.isArmed(),
-            "triggered": triggered,
-            "status": "motion" if triggered else "idle",
-            "extra": self._extra.copy(),
-        }
+    def getID(self) -> int:
+        return self._id
