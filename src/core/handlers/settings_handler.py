@@ -103,9 +103,11 @@ class SettingsHandler:
                         "message": "Current guest password incorrect",
                     }
             if master_password or guest_password:
-                self._auth_service.update_control_panel_passwords(
+                password_result = self._auth_service.update_control_panel_passwords(
                     master_password=master_password, guest_password=guest_password
                 )
+                if not password_result.get("success"):
+                    return password_result
         return result
 
     def reset_settings(self, **_) -> Dict[str, Any]:

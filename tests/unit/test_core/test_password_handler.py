@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from src.configuration import AccessLevel, LoginInterface
+from src.configuration import AccessLevel, LoginInterface, StorageManager
 from src.core.services.auth.lock_manager import LockManager
 from src.core.services.auth.password_handler import (
     ControlPanelPasswordHandler,
@@ -91,6 +91,27 @@ class TestPasswordChangeHandler:
 
         assert result == {"success": False, "message": "boom"}
 
+    def test_change_prevents_duplicate_master_guest_pins(self):
+        handler, login_manager, logger = self._handler()
+        ensure_auth = Mock(return_value=True)
+        storage = Mock(spec=StorageManager)
+        handler._login_manager._storage_manager = storage
+        # simulate other user (guest) already using "0000"
+        other_login = LoginInterface("guest", "0000", "control_panel", AccessLevel.GUEST_ACCESS)
+        storage.get_login_interface.return_value = other_login.to_dict()
+
+        result = handler.change(
+            current_user="master",
+            username="master",
+            current_password="oldpass",
+            new_password="0000",
+            interface="control_panel",
+            ensure_auth_fn=ensure_auth,
+        )
+
+        assert result == {"success": False, "message": "Pin reserved"}
+        login_manager.change_password.assert_not_called()
+
 
 class StubStorage:
     def __init__(self):
@@ -168,5 +189,20 @@ class TestControlPanelPasswordHandler:
 
         result = handler.update_passwords(master_password=None, guest_password="5678")
 
-        assert result == {"success": False}
+        assert result == {"success": False, "message": "Guest PIN not found."}
+
+    def test_update_passwords_blocks_matching_pins(self):
+        handler, storage, lock = self._handler()
+        storage.add_user("master", "master11")
+        storage.add_user("guest", "guest22A")
+
+        # Attempt to change master to current guest PIN -> should be rejected
+        result = handler.update_passwords(master_password="guest22A", guest_password=None)
+        assert result["success"] is False
+        assert "Master PIN unchanged" in result["message"]
+
+        # Master remains original; attempting to set guest equal to master should fail
+        result = handler.update_passwords(master_password=None, guest_password="master11")
+        assert result["success"] is False
+        assert "Guest PIN unchanged" in result["message"]
 
