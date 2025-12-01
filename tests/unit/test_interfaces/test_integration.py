@@ -70,6 +70,12 @@ class TestSecurityFlow:
     
     def test_safety_zone_operations(self, web_interface, mock_system):
         """Test safety zone operations"""
+        # Login so zone operations are authorized
+        login = web_interface.send_message(
+            "login_web", user_id="admin", password1="password", password2="password"
+        )
+        assert login["success"] is True
+
         # Get zones
         result = web_interface.send_message('get_safety_zones')
         assert len(result['data']) >= 2

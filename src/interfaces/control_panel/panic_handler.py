@@ -27,6 +27,8 @@ class PanicVerificationMixin:
         self._state = "panic_verify"
         self._panic_locked = False
         self._password.clear_buffer()
+        if hasattr(self._password, "clear_master_buffer"):
+            self._password.clear_master_buffer()
         self.set_display_short_message1("PANIC MODE")
         self.set_display_short_message2("Enter master password")
 
@@ -37,6 +39,8 @@ class PanicVerificationMixin:
         self._state = self._panic_prev_state or "idle"
         self._panic_prev_state = None
         self._password.clear_buffer()
+        if hasattr(self._password, "clear_master_buffer"):
+            self._password.clear_master_buffer()
         if self._state == "idle":
             self._display.show_idle()
         elif self._state == "logged_in":

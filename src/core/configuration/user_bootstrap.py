@@ -72,7 +72,7 @@ class UserBootstrap:
     def _update_if_needed(self, existing: Dict, desired: Dict):
         needs_update = False
         updated = existing.copy()
-        if updated.get("password_hash") != desired["password_hash"]:
+        if not updated.get("password_hash"):
             updated["password_hash"] = desired["password_hash"]
             needs_update = True
         for key in self.POLICY_FIELDS:

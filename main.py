@@ -94,8 +94,8 @@ CONTROL PANEL USAGE (SRS V.1):
      - 7 = AWAY (arm all)
      - 8 = HOME (disarm)
      - 9 = CODE (change password)
-     - 3 = OFF (turn off system)
-     - 6 = RESET
+     - 2 = OFF (turn off system)
+     - 3 = RESET
   4. PANIC: Press '*' or '#' anytime
 
 WEB INTERFACE USAGE (SRS V.1.b):

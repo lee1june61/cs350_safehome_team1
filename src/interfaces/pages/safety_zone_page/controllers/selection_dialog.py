@@ -38,3 +38,5 @@ class SelectionDialogController:
             self._dialog.close()
             self._dialog = None
 
+
+

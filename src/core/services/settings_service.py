@@ -52,4 +52,18 @@ class SettingsService:
             return {"success": True}
         return {"success": False, "message": "Failed to update settings"}
 
+    def reset_to_defaults(self, *, user: Optional[str] = None):
+        """Reset all settings to their factory defaults."""
+        self._settings = SystemSettings()
+        try:
+            success = self._config_manager.update_system_settings(self._settings)
+        except ValidationError as exc:
+            return {"success": False, "message": str(exc)}
+        if success:
+            self._logger.add_event(
+                "CONFIGURATION", "System settings reset to defaults", user=user
+            )
+            return {"success": True}
+        return {"success": False, "message": "Failed to reset settings"}
+
 

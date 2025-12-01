@@ -66,3 +66,11 @@ class SingleCameraViewPage(Page):
         self._is_visible = False
         self._video_feed.stop()
 
+    def refresh_camera_info(self):
+        """Public helper so other components can refresh metadata safely."""
+        self._info_panel.refresh()
+
+    def _update_info(self):
+        """Backward-compatible alias used by password manager."""
+        self.refresh_camera_info()
+

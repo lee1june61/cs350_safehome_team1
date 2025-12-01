@@ -28,7 +28,8 @@ class DisplayMessages:
 
     def show_welcome(self, access_level: str):
         self._panel.set_display_short_message1(f"Welcome ({access_level})")
-        self._panel.set_display_short_message2("7=Away 8=Home")
+        # Remind operators of the physical button mappings that differ from digits.
+        self._panel.set_display_short_message2("7=Away 8=Home 2=Off 3=Reset")
 
     def show_locked(self, message: str = "Wait 60 sec"):
         self._panel.set_display_short_message1("LOCKED")
@@ -37,6 +38,11 @@ class DisplayMessages:
     def show_wrong_password(self, attempts: int):
         self._panel.set_display_short_message1("Wrong password")
         self._panel.set_display_short_message2(f"{attempts} tries left")
+
+    def show_panic_verify_error(self):
+        """Display when master code verification fails during panic handling."""
+        self._panel.set_display_short_message1("Wrong password")
+        self._panel.set_display_short_message2("Try again")
 
     def show_stopping(self):
         self._panel.set_display_short_message1("Stopping...")
@@ -49,4 +55,6 @@ class DisplayMessages:
     def show_password_prompt(self, line1: str, line2: str = ""):
         self._panel.set_display_short_message1(line1)
         self._panel.set_display_short_message2(line2)
+
+
 

@@ -86,8 +86,16 @@ class ControlPanelModeManager:
         self._panel.set_display_short_message2("")
 
     def finish_pw_change(self):
-        self._panel._password.finish_change()
-        self._panel._state = self._panel.STATE_LOGGED_IN
-        self._panel.set_display_short_message1("Password changed")
-        self._panel.set_display_short_message2("")
+        result = self._panel._password.finish_change()
+        if result.get("success"):
+            self._panel._state = self._panel.STATE_LOGGED_IN
+            self._panel.set_display_short_message1("Password changed")
+            self._panel.set_display_short_message2("")
+        else:
+            self._panel._state = self._panel.STATE_CHANGING_PW
+            self._panel._password.start_change()
+            message = result.get("message", "Change failed")
+            self._panel.set_display_short_message1("Change failed")
+            self._panel.set_display_short_message2(str(message)[:16])
+
 

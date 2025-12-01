@@ -62,3 +62,5 @@ class LogTable:
         return "normal"
 
 
+
+

@@ -59,3 +59,5 @@ class ModeSwitcher:
             self._manager._dirty = False
         return True
 
+
+

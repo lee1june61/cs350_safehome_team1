@@ -41,8 +41,10 @@ def save_all_settings(
         settings['web_password2'] = web_pw2.get()
     if master_pw.get():
         settings['master_password'] = master_pw.get()
+        settings['master_password_current'] = master_pw_current.get()
     if guest_pw.get():
         settings['guest_password'] = guest_pw.get()
+        settings['guest_password_current'] = guest_pw_current.get()
     
     # Send to system
     res = page_instance.send_to_system('configure_system_settings', **settings)

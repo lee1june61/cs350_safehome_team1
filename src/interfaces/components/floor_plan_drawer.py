@@ -3,6 +3,7 @@ Drawing utility for the FloorPlan component.
 """
 import tkinter as tk
 from .floor_plan_definitions import DEVICES
+from .floor_plan_data import DEVICE_COLORS
 
 def draw_fallback(canvas: tk.Canvas, width: int, height: int):
     """Draw simple room layout if image unavailable."""
@@ -29,8 +30,6 @@ def draw_devices(
     handle_click: callable
 ):
     """Draw device icons at calculated positions."""
-    colors = {'camera': '#9b59b6', 'sensor': '#e74c3c', 'motion': '#3498db', 'door_sensor': '#3498db'}
-    
     for dev_id, (nx, ny, dtype) in DEVICES.items():
         if (dtype == 'camera' and not show_cameras) or \
            (dtype in ('sensor', 'motion', 'door_sensor') and not show_sensors):
@@ -49,7 +48,8 @@ def draw_devices(
             outline, outline_width = '#333', 2
         
         tag = f'd_{dev_id}'
-        canvas.create_oval(x-r, y-r, x+r, y+r, fill=colors.get(dtype, '#666'),
+        fill_color = DEVICE_COLORS.get(dtype, '#666')
+        canvas.create_oval(x-r, y-r, x+r, y+r, fill=fill_color,
                               outline=outline, width=outline_width, tags=(tag, 'device', dtype))
         canvas.create_text(x, y+16, text=dev_id, font=('Arial', 9, 'bold'),
                               fill='#333', tags=(f'lbl_{dev_id}',))
