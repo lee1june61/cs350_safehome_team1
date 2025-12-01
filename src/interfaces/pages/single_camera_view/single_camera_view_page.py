@@ -1,6 +1,9 @@
 """SingleCameraViewPage - SRS V.3.a,b,c,d."""
 
+from tkinter import messagebox
+
 from ...components.page import Page
+from ..camera_list.access_manager import CameraAccessManager
 from .ui_builder import SingleCameraViewUIBuilder
 from .password_manager import CameraPasswordManager
 from .video_feed import VideoFeedManager
@@ -28,6 +31,8 @@ class SingleCameraViewPage(Page):
         self._video_feed = VideoFeedManager(self)
         self._controls = CameraControls(self, self._info_panel)
         self._back_nav = BackNavigation(self)
+        self._access_manager = CameraAccessManager(self)
+        self._requires_password = False
 
     @property
     def controls(self) -> CameraControls:
@@ -56,6 +61,9 @@ class SingleCameraViewPage(Page):
         self._is_visible = True
         self._back_nav.apply()
         self._cam_id = self._web_interface.get_context("camera_id", "C1")
+        if not self._ensure_camera_access():
+            self._is_visible = False
+            return
         self._video_paused = False
         if self._video:
             self._video.config(text="")
@@ -73,4 +81,41 @@ class SingleCameraViewPage(Page):
     def _update_info(self):
         """Backward-compatible alias used by password manager."""
         self.refresh_camera_info()
+
+    # ------------------------------------------------------------------ #
+    # Internal helpers
+    # ------------------------------------------------------------------ #
+    def _ensure_camera_access(self) -> bool:
+        """Ensure the current user is authorized to view the selected camera."""
+        info = self.send_to_system("get_camera", camera_id=self._cam_id)
+        if not info.get("success"):
+            messagebox.showerror("Camera Error", info.get("message", "Camera not found"))
+            self._navigate_back()
+            return False
+
+        data = info.get("data") or {}
+        self._requires_password = bool(
+            data.get("has_password") or data.get("password")
+        )
+        if not self._requires_password:
+            return True
+
+        if self._access_manager.is_locked(self._cam_id):
+            self.blank_video("Camera is locked.\nPlease wait 60 seconds.", pause_feed=True)
+            self._navigate_back()
+            return False
+
+        self.blank_video("Password required.\nEnter camera password.", pause_feed=True)
+        if self._access_manager.verify_password(self._cam_id):
+            if self._video:
+                self._video.config(text="")
+            return True
+
+        self.blank_video("Password verification failed.", pause_feed=True)
+        self._navigate_back()
+        return False
+
+    def _navigate_back(self):
+        target = self._web_interface.get_context("camera_back_page", "camera_list")
+        self.navigate_to(target)
 

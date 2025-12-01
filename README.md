@@ -44,8 +44,7 @@ safehome_team1/
 │   ├── virtual_devices/     # Sensor/camera simulators used by controllers
 │   └── utils/               # Misc helpers and constants
 ├── tests/                   # Unit + integration suites
-├── main.py                  # Launches both interfaces in a single process
-└── tools/                   # Coverage reporters and build helpers
+└── main.py                  # Launches both interfaces in a single process
 ```
 
 - **Core services** (auth, alarm, settings) expose command handlers that the interfaces call through a registry.  
@@ -101,73 +100,84 @@ If the DB becomes inconsistent during testing, delete `safehome.db` and rerun th
 ## Control Panel Handbook
 The keypad is driven by a state machine under `interfaces/control_panel/control_panel_states/`.
 
-### Boot & Login Flow
-1. Press `1` (`POWER`) → panel transitions from *OFF* to *NOT READY*.
-2. Enter a 4-digit PIN → master access enables mode changes, guest access is limited (no settings edits).
-3. After three failed attempts the keypad locks; wait for the configured lock duration or reset via the web UI.
+### 1. Turning the System On/Off
+- **Power On**: Press `1` (POWER) when the display is OFF. The `Power` LED (Green) will light up, and the screen will read `READY` or `NOT READY`.
+- **Power Off**: Press `1` again. The LED turns off.
+- **Disarm / Idle**: If an alarm is sounding or the system is armed, enter your PIN + `2` (OFF) to return to idle state.
 
-### Keypad Map
-| Key | Action |
-| --- | --- |
-| 1 | Power toggle |
-| 2 | Disarm / turn system OFF |
-| 3 | Reset (clears alarms/panic if authenticated) |
-| 6 | Status scroll (cycles through zone text) |
-| 7 | Arm AWAY |
-| 8 | Arm HOME |
-| 9 | CODE (start password change workflow) |
-| `*` / `#` | Panic trigger (requires master PIN to clear) |
+### 2. Logging In & Access Levels
+- **Master Access**: Enter `1234` (default). Allows Arming, Disarming, Panic, and Password Changes.
+- **Guest Access**: Enter `5678` (default). Allows Arming/Disarming only. Cannot change settings or clear panic states.
+- **Lockout**: After 3 failed attempts, the keypad locks for 60 seconds.
 
-### Password Change (panel side)
-1. Logged-in master presses `9`.
-2. Panel requests current PIN → enter it.
-3. Panel asks for new PIN twice.
-4. Backend rejects:
-   - Any PIN already used by the opposite role (`Pin reserved`).
-   - Non-numeric input, length < 4, or lockout state.
+### 3. Arming the System
+- **Away Mode (All Sensors)**:
+  1. Ensure `Ready` LED is Green (all zones closed).
+  2. Press `7` (AWAY).
+  3. Enter PIN.
+  4. System arms; `Armed` LED lights up.
+- **Home Mode (Perimeter Only)**:
+  1. Press `8` (HOME).
+  2. Enter PIN.
+  3. System arms; `Armed` LED lights up.
 
-### Indicator Cheatsheet
-- **Display line 1**: mode or immediate instruction (`Enter PIN`, `Change failed`, etc.).
-- **Display line 2**: masked PIN entry or extended status message.
-- **LEDs**:  
-  - `armed` (green) = system is in HOME or AWAY.  
-  - `power` (green) = panel powered.  
-  - `ready` (not ready indicator) toggles based on sensor states.
+### 4. Handling Alarms (Intrusion / Panic)
+- **Triggering Panic**: Press `*` or `#`. The screen flashes `ALARM` and sirens activate.
+- **Clearing Alarm**:
+  1. Enter **Master PIN**.
+  2. Press `2` (OFF).
+  3. The alarm silences and the system disarms.
 
-### Panic & Alarm Handling
-1. Trigger panic with `*` or `#`.  
-2. Siren state flips, `ALARM` flashes, and zones log an event.  
-3. Enter master PIN + `2` to silence. Guest PINs cannot clear panic.
+### 5. Changing the Panel PIN
+*(Master users only)*
+1. Log in with Master PIN.
+2. Press `9` (CODE).
+3. Screen prompts for **Current PIN**. Enter it.
+4. Screen prompts for **New PIN**. Enter the new 4-digit code.
+5. Screen prompts to **Confirm**. Re-enter the new code.
+6. Success: "Password Changed". Failure: "Change Failed" or "Pin reserved" (if it duplicates the guest PIN).
 
 ---
 
 ## Web Interface Handbook
-The remote console mirrors what an operator would see.
+The remote console mirrors what an operator would see. Use `admin / password / password` to log in.
 
-### Login
-Use the default credentials (`admin / password / password`). Session timeout is configurable; idle tabs auto-log out after the configured minutes.
+### 1. Dashboard & Monitoring
+- **Dashboard**: Overview of current system state (Armed/Disarmed), Alarm status, and recent event log.
+- **Status Display**: The top-right widget always reflects the current core state (e.g., `AWAY`, `HOME`, `ALARM`).
 
-### Primary Tabs
-- **Dashboard**: live summary (current mode, alarm status, last events).
-- **Safety Zone Page**:
-  - Left column lists zones; selecting one loads associated sensors.
-  - Buttons: `Arm`, `Disarm`, `Edit Sensors`, `Save`.
-  - Camera thumbnail indicates if video is available.
-- **Camera Pages**:
-  - *Single View*: manipulate PTZ via on-screen buttons.
-  - *Camera List*: toggle multiple cameras at once (enable/disable).
-- **Security Page**:
-  - Quick arm/disarm buttons that issue master commands.
-  - Panic button duplicates the keypad panic feature.
-- **View Log**:
-  - Filter by date, event type, and export to CSV.
-- **Configure System Setting Page**:
-  - Update contact numbers, lock times, login attempts.
-  - Change control-panel master/guest PINs (requires the current PINs for verification).
+### 2. Managing Safety Zones
+Navigate to the **Safety Zone Page**.
+1. **Select a Zone**: Click a zone name in the left sidebar (e.g., "Living Room").
+2. **Edit Sensors**: Click the `Edit Sensors` button. A dialog appears.
+   - **Add**: Choose a sensor type (Motion, Door, Window) and click Add.
+   - **Remove**: Select a sensor from the list and click Remove.
+   - **Save**: Click Save to persist changes.
+3. **Arm/Disarm Zone**: Use the `Arm` or `Disarm` buttons in the right panel to toggle that specific zone's state.
 
-### Tips
-- Every action posts feedback underneath the button. If you see `Pin reserved` or lockout errors, fix the underlying issue on the panel first.
-- When editing settings, unsaved fields keep blue outlines; click `Save` or `Reset to default`.
+### 3. Camera Control & Locking
+Navigate to **Single Camera View** or **Camera List**.
+- **Viewing**: Click a camera to see its live feed (simulated static image).
+- **PTZ Control**: Use the arrow buttons and Zoom +/- to adjust the view.
+- **Locking/Unlocking**:
+  - If a camera is locked, you will see a "LOCKED" banner.
+  - **Unlock**: Click the camera/banner -> Enter password.
+  - **Lock**: Failing the password 3 times locks the camera for 60 seconds globally (on both web and single-view pages).
+- **Password Management**: Use `Set Password` or `Delete Password` to secure a camera feed.
+
+### 4. Security Actions
+Navigate to the **Security Page**.
+- **Quick Arming**: Click `Arm Home` or `Arm Away`. Triggers the same flow as the keypad.
+- **Panic Button**: Click `Panic` to trigger the system-wide alarm. Requires Master PIN on the keypad to clear.
+
+### 5. System Configuration
+Navigate to **Configure System Setting Page**.
+- **Contact Info**: Update Homeowner or Monitoring Center phone numbers.
+- **Timers**: Adjust `Entry Delay`, `Exit Delay`, or `Lockout Duration`.
+- **Change PINs**:
+  - You can update the Control Panel's Master/Guest PINs here.
+  - Requires entering the *current* PIN for verification.
+  - **Rule**: Master and Guest PINs must be unique.
 
 ---
 
@@ -193,14 +203,6 @@ pytest tests/integration -v
 # Coverage with branch metrics + HTML
 pytest --cov=src --cov-branch --cov-report=term-missing --cov-report=html
 ```
-
-HTML output lands in `htmlcov/index.html`. Open in a browser for color-coded line details.
-
-### JSON & Markdown Coverage Helpers
-1. Generate `coverage.json`:
-   ```bash
-   pytest --cov=src --cov-branch --cov-report=json
-   ```
 
 ### Linting
 We rely on `pytest` plugins for static checks. If you add flake8 or ruff locally, run them from the repo root so relative imports resolve correctly.

@@ -2,6 +2,12 @@
 from tkinter import messagebox
 from typing import TYPE_CHECKING
 
+from ..camera_lock_state import (
+    is_locked as global_is_locked,
+    lock_camera,
+    unlock_camera,
+)
+
 if TYPE_CHECKING:
     from .single_camera_view_page import SingleCameraViewPage
 
@@ -10,7 +16,6 @@ class CameraLockManager:
     """Manages camera password attempt tracking and locking."""
 
     _attempts: dict = {}
-    _locked: dict = {}
     MAX_ATTEMPTS = 3
     LOCK_TIME_MS = 60000
 
@@ -22,7 +27,7 @@ class CameraLockManager:
         return self._page._cam_id
 
     def is_locked(self) -> bool:
-        if self._locked.get(self._cam_id, False):
+        if global_is_locked(self._cam_id):
             messagebox.showerror(
                 "Locked",
                 f"Password operations for {self._cam_id} locked.\n"
@@ -32,7 +37,7 @@ class CameraLockManager:
     
     def is_locked_silent(self) -> bool:
         """Check if locked without showing messagebox (for UI updates)."""
-        return self._locked.get(self._cam_id, False)
+        return global_is_locked(self._cam_id)
 
     def init_attempts(self):
         if self._cam_id not in self._attempts:
@@ -44,7 +49,7 @@ class CameraLockManager:
         remaining = self._attempts[self._cam_id]
 
         if remaining <= 0:
-            self._locked[self._cam_id] = True
+            lock_camera(self._cam_id)
             messagebox.showerror(
                 "Locked", "Too many attempts.\nLocked for 60 seconds.")
             self._page._frame.after(self.LOCK_TIME_MS, self._unlock)
@@ -53,7 +58,7 @@ class CameraLockManager:
                 "Wrong Password", f"Incorrect. {remaining} attempts left.")
 
     def _unlock(self):
-        self._locked[self._cam_id] = False
+        unlock_camera(self._cam_id)
         self._attempts[self._cam_id] = self.MAX_ATTEMPTS
 
     def reset_attempts(self):

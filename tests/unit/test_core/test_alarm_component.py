@@ -41,3 +41,4 @@ class TestAlarmComponent:
         assert alarm.get_trigger_reason() is None
 
 
+

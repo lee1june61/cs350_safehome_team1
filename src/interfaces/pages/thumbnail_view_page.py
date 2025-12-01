@@ -80,11 +80,8 @@ class ThumbnailViewPage(Page):
             ttk.Label(self._content, text="No cameras available", font=('Arial', 14)).pack(pady=50)
     
     def _view(self, cam_id, locked: bool = False):
-        if locked:
-            if self._access.is_locked(cam_id):
-                return
-            if not self._access.verify_password(cam_id):
-                return
+        if locked and self._access.is_locked(cam_id):
+            return
         self._web_interface.set_context('camera_id', cam_id)
         self._web_interface.set_context('camera_back_page', 'thumbnail_view')
         self.navigate_to('single_camera_view')
