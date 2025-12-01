@@ -59,3 +59,4 @@ class TestControlPanelUserResolver:
         assert resolver.resolve("", "") == ["master"]
 
 
+

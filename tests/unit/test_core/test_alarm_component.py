@@ -40,3 +40,4 @@ class TestAlarmComponent:
         assert alarm.get_state() == "INACTIVE"
         assert alarm.get_trigger_reason() is None
 
+
