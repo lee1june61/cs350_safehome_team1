@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import IntEnum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from .password_utils import hash_password, validate_password_policy
 
@@ -35,7 +35,15 @@ class LoginInterface:
     last_login: Optional[datetime] = None
 
     def __init__(
-        self, username: str, password: str, interface: str, access_level: int
+        self,
+        username: str,
+        password: str,
+        interface: str,
+        access_level: int,
+        *,
+        password_min_length: Optional[int] = None,
+        password_requires_digit: Optional[bool] = None,
+        password_requires_special: Optional[bool] = None,
     ) -> None:
         self.username, self.interface, self.access_level = (
             username,
@@ -43,11 +51,14 @@ class LoginInterface:
             int(access_level),
         )
         self.login_attempts, self.is_locked, self.last_login = 0, False, None
+        policy = self._resolve_policy(
+            interface, password_min_length, password_requires_digit, password_requires_special
+        )
         (
             self.password_min_length,
             self.password_requires_digit,
             self.password_requires_special,
-        ) = (8, True, False)
+        ) = policy
         self.created_at, self.password_hash = datetime.utcnow(), ""
         self.set_password(password)
 
@@ -87,3 +98,23 @@ class LoginInterface:
         from .login_serialization import from_dict
 
         return from_dict(data)
+
+    @staticmethod
+    def _default_policy(interface: str) -> Tuple[int, bool, bool]:
+        if interface == "control_panel":
+            return 4, False, False
+        return 8, True, False
+
+    def _resolve_policy(
+        self,
+        interface: str,
+        min_length_override: Optional[int],
+        digit_override: Optional[bool],
+        special_override: Optional[bool],
+    ) -> Tuple[int, bool, bool]:
+        default_min, default_digit, default_special = self._default_policy(interface)
+        return (
+            min_length_override if min_length_override is not None else default_min,
+            digit_override if digit_override is not None else default_digit,
+            special_override if special_override is not None else default_special,
+        )

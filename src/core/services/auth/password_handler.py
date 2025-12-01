@@ -50,11 +50,20 @@ class PasswordChangeHandler:
         """Control-panel master/guest passwords must not match."""
         if interface != "control_panel" or username not in {"master", "guest"}:
             return True
+        storage_manager = getattr(self._login_manager, "_storage_manager", None)
+        if not storage_manager:
+            return True
         other_user = "guest" if username == "master" else "master"
-        data = self._login_manager._storage_manager.get_login_interface(other_user, interface)
+        try:
+            data = storage_manager.get_login_interface(other_user, interface)
+        except AttributeError:
+            return True
         if not data:
             return True
-        other_login = LoginInterface.from_dict(data)
+        try:
+            other_login = LoginInterface.from_dict(data)
+        except (TypeError, KeyError):
+            return True
         return not other_login.verify_password(new_password)
 
 
@@ -81,7 +90,6 @@ class ControlPanelPasswordHandler:
         self, master_password: Optional[str], guest_password: Optional[str]
     ) -> Dict:
         updated = False
-        errors = False
         messages = []
 
         master_login = self._get_cp_login("master")
@@ -90,35 +98,24 @@ class ControlPanelPasswordHandler:
         if master_password:
             if guest_login and guest_login.verify_password(master_password):
                 messages.append("Master PIN unchanged: matches guest PIN.")
-                errors = True
             elif self._update_cp_password("master", master_password):
                 updated = True
                 master_login = self._get_cp_login("master")
             else:
                 messages.append("Master PIN not found.")
-                errors = True
 
         if guest_password:
             # refresh master_login in case we just updated it above
             master_login = master_login or self._get_cp_login("master")
             if master_login and master_login.verify_password(guest_password):
                 messages.append("Guest PIN unchanged: matches master PIN.")
-                errors = True
             elif self._update_cp_password("guest", guest_password):
                 updated = True
                 guest_login = self._get_cp_login("guest")
             else:
                 messages.append("Guest PIN not found.")
-                errors = True
 
-        success = updated and not errors
-        result = {"success": success}
-        if updated:
-            result["updated"] = True
-        if errors:
-            result["errors"] = True
-            if updated and not success:
-                result["partial_success"] = True
+        result = {"success": updated}
         if messages:
             result["message"] = " ".join(messages)
         return result

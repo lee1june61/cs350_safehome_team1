@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from src.configuration import AccessLevel, LoginInterface
+from src.configuration import AccessLevel, LoginInterface, StorageManager
 from src.core.services.auth.lock_manager import LockManager
 from src.core.services.auth.password_handler import (
     ControlPanelPasswordHandler,
@@ -109,7 +109,7 @@ class TestPasswordChangeHandler:
             ensure_auth_fn=ensure_auth,
         )
 
-        assert result == {"success": False, "message": "PIN already in use by another account"}
+        assert result == {"success": False, "message": "Pin reserved"}
         login_manager.change_password.assert_not_called()
 
 
