@@ -100,3 +100,4 @@ class StateTransitions:
         self._panel.set_display_short_message1("Password changed")
         self._panel.set_display_short_message2("")
 
+

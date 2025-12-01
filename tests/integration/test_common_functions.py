@@ -154,3 +154,4 @@ class TestIT007ChangePassword:
         )
         assert result["success"] is False
 
+

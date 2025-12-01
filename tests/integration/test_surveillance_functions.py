@@ -191,3 +191,4 @@ class TestIT024DisableCamera:
         # Should indicate camera is disabled
         assert result.get("success") is False or "disabled" in str(result).lower()
 
+

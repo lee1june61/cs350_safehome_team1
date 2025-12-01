@@ -75,3 +75,4 @@ class CameraAccessManager:
         self._locked[cam_id] = False
         self._attempts[cam_id] = self.MAX_ATTEMPTS
 
+

@@ -102,3 +102,4 @@ class DisplayHandler:
         self._lock_remaining -= 1
         self._lock_job = self._panel.after(1000, self._update_lock_countdown)
 
+
