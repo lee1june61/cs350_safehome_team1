@@ -4,7 +4,12 @@ QUICKSTART.md
 HOW_TO_RUN.md
 INSTALL_PYTHON.md
 PROJECT_STRUCTURE.md
-
+Unit_Test_Report_Part1_External_Communication.md
+Unit_Test_Report_Part2_Surveillance.md
+Unit_Test_Report_Part3_1_Security_Sensors.md
+Unit_Test_Report_Part3_2_Security_Alarms.md
+Unit_Test_Report_Part3_3_Security_Authentication.md
+Unit_Test_Report_Part4_Configuration.md
 # 테스트 파일들
 test_devices_simple.py
 test_devices_import.py
